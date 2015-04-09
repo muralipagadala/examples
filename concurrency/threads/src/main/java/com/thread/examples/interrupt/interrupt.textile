@@ -1,0 +1,5 @@
+h1. Interrupts
+
+h5. Why we need interrupts?
+
+I verify that even after interrupt thread is continues to run to finish its task.

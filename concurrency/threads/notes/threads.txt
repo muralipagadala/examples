@@ -1,0 +1,3723 @@
+
+package com.thread.examples.filecopy;
+
+public class Buffer {
+
+        private char[] buffer;
+        private int size;
+
+        public Buffer(int bufferSize){
+                buffer = new char[bufferSize];
+                size = bufferSize;
+        }
+
+        public char[] getBuffer(){
+                return buffer;
+        }
+
+        public void setSize(int newSize){
+                if(newSize > size){
+                        char[] newBuffer = new char[newSize];
+                        System.arraycopy(buffer, 0, newBuffer, 0, size);
+                        buffer = newBuffer;
+                }
+                size=newSize;
+        }
+
+        public int getSize(){
+                return size;
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.filecopy;
+
+import java.util.Vector;
+
+public class BufferQueue {
+
+        private Vector<Buffer> buffers = new Vector<Buffer>();
+
+        public synchronized void enqueueBuffer(Buffer buffer){
+                if(buffers.size() == 0){
+                        notify();
+                }
+                buffers.add(buffer);
+        }
+
+        public synchronized Buffer dequeuBuffer()throws InterruptedException{
+                while(buffers.size() == 0){
+                        wait();
+                }
+                Buffer firstBuffer = buffers.elementAt(0);
+                buffers.removeElementAt(0);
+                return firstBuffer;
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.filecopy;
+
+import java.util.*;
+import java.io.*;
+
+import com.thread.examples.util.WatchUtils;
+
+public class FileCopy0 {
+        public static final int BLOCK_SIZE = 4096;
+
+        public static void copy(String src, String dst) throws IOException {
+                FileReader fr = new FileReader(src);
+                FileWriter fw = new FileWriter(dst);
+                char[] buffer = new char[BLOCK_SIZE];
+                int bytesRead;
+                while (true) {
+                        bytesRead = fr.read(buffer);
+                        //System.out.println(bytesRead + " bytes read");
+                        if (bytesRead < 0)
+                                break;
+                        fw.write(buffer, 0, bytesRead);
+                        //System.out.println(bytesRead + " bytes written");
+                }
+                fw.close();
+                fr.close();
+        }
+
+        public static void main(String args[]) {
+                String srcFile = "C:/coderunner/eliza/incoming/coderunner-engine-batch.tar";
+                String dstFile = "C:/coderunner/eliza/outgoing/coderunner-engine-batch.tar";
+                try {
+                        WatchUtils.resetAllTasks();
+                        WatchUtils.startTask("Time taken for copying a file");
+                        copy(srcFile, dstFile);
+                        WatchUtils.endTask();
+                        System.out.println(WatchUtils.getTaskSummary());
+                } catch (Exception e) {
+                        System.out.println("Copy failed :"+e);
+                }
+        }
+}
+----------------------------------------------------------------------
+package com.thread.examples.filecopy;
+
+import com.thread.examples.util.WatchUtils;
+
+
+public class FileCopy1 {
+        private static String srcFile = "C:/coderunner/eliza/incoming/coderunner-engine-batch.tar";
+        private static String dstFile = "C:/coderunner/eliza/outgoing/coderunner-engine-batch.tar";
+        private static int buffers = 20;
+        private static int bufferSize = 4096;
+
+        public static void main(String... args) {
+
+                Pool pool = new Pool(buffers, bufferSize);
+                BufferQueue copyBuffers = new BufferQueue();
+
+                FileCopyReader1 src;
+                try {
+                        src = new FileCopyReader1(pool,copyBuffers,srcFile);
+                        src.setName("Reader");
+                } catch (Exception e) {
+                        System.err.println("Cannot open " + srcFile);
+                        return;
+                }
+                FileCopyWriter1 dst;
+                try {
+                        dst = new FileCopyWriter1(pool, copyBuffers,dstFile);
+                        dst.setName("Writer");
+                } catch (Exception e) {
+                        System.err.println("Cannot open " + dstFile);
+                        return;
+                }
+                WatchUtils.resetAllTasks();
+                WatchUtils.startTask("Time taken for copying a file");
+                src.start();
+                dst.start();
+                try {
+                        src.join();
+                } catch (Exception e) {
+                }
+                try {
+                        dst.join();
+                } catch (Exception e) {
+                }
+                WatchUtils.endTask();
+                System.out.println(WatchUtils.getTaskSummary());
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.filecopy;
+
+import java.io.FileReader;
+import java.io.IOException;
+
+public class FileCopyReader1 extends Thread {
+
+        private Pool pool;
+        private BufferQueue copyBuffers;
+        private String fileName;
+        FileReader fileReader;
+
+        public FileCopyReader1(Pool pool, BufferQueue copyBuffers, String fileName) throws IOException {
+                super();
+                this.pool = pool;
+                this.copyBuffers = copyBuffers;
+                this.fileName = fileName;
+                this.fileReader = new FileReader(fileName);
+        }
+
+        public void run() {
+                Buffer buffer;
+                int bytesRead = 0;
+
+                do {
+                        try {
+                                buffer = pool.use();
+                                bytesRead = fileReader.read(buffer.getBuffer());
+                        } catch(Exception e) {
+                                buffer = new Buffer(0);
+                                bytesRead = 0;
+                        }
+                        if (bytesRead < 0) {
+                                buffer.setSize(0);
+                        } else {
+                                buffer.setSize(bytesRead);
+                        }
+                        copyBuffers.enqueueBuffer(buffer);
+                } while (bytesRead > 0);
+
+                try {
+                        fileReader.close();
+                }
+                catch(Exception e) { return; }
+        }
+
+}
+
+-----------------------------------------------------------------------
+package com.thread.examples.filecopy;
+
+import java.io.FileWriter;
+import java.io.IOException;
+
+public class FileCopyWriter1 extends Thread{
+
+        private Pool pool;
+        private BufferQueue copyBuffers;
+        private String fileName;
+        FileWriter fileWriter;
+
+        public FileCopyWriter1(Pool pool, BufferQueue copyBuffers, String fileName) throws IOException {
+                super();
+                this.pool = pool;
+                this.copyBuffers = copyBuffers;
+                this.fileName = fileName;
+                this.fileWriter = new FileWriter(fileName);
+        }
+
+        public void run() {
+                Buffer buffer;
+                while (true) {
+                        try {
+                                buffer = copyBuffers.dequeuBuffer();
+                        } catch(Exception e) { return; }
+
+                        if (buffer.getSize() > 0) {
+                                try {
+                                        char[] bufer = buffer.getBuffer();
+                                        int size = buffer.getSize();
+                                        fileWriter.write(bufer, 0, size);
+                                } catch(Exception e) {
+                                        break;
+                                }
+                                pool.release(buffer);
+                        }else{
+                                break;
+                        }
+                }
+                try {
+                        fileWriter.close();
+                }catch(Exception e) { return; }
+        }
+
+}
+
+
+----------------------------------------------------------------------
+package com.thread.examples.filecopy;
+
+import java.io.OutputStream;
+import java.util.Vector;
+
+public class Pool {
+
+        private Vector<Buffer> freeBuffers = new Vector<Buffer>();
+        OutputStream debug = System.out;
+        int buffers;
+        int bufferSize;
+
+        public Pool(int buffers, int bufferSize){
+                this.buffers = buffers;
+                this.bufferSize = bufferSize;
+                freeBuffers.ensureCapacity(buffers);
+                for(int i = 0; i < buffers; i++){
+                        freeBuffers.add(new Buffer(bufferSize));
+                }
+        }
+
+        public synchronized Buffer use()throws InterruptedException{
+                while(freeBuffers.size() == 0){
+                        wait();
+                }
+                Buffer nextBuffer = freeBuffers.lastElement();
+                freeBuffers.removeElement(nextBuffer);
+                return nextBuffer;
+        }
+
+        public synchronized void release(Buffer oldBuffer){
+                if(freeBuffers.size() == 0){
+                        notify();
+                }
+                if( freeBuffers.contains(oldBuffer)){
+                        return;
+                }
+                if(oldBuffer.getSize() < bufferSize){
+                        oldBuffer.setSize(bufferSize);
+                }
+                freeBuffers.add(oldBuffer);
+        }
+
+}
+
+----------------------------------------------------------------------
+
+
+----------------------------------------------------------------------
+
+
+----------------------------------------------------------------------
+
+
+----------------------------------------------------------------------
+
+----------------------------------------------------------------------
+
+----------------------------------------------------------------------
+
+
+----------------------------------------------------------------------
+
+----------------------------------------------------------------------
+
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic;
+
+public class IsAliveExample extends Thread{
+
+        public void run(){
+                printMsg();
+        }
+
+        public void printMsg(){
+                for(int i = 0; i < 10; i++){
+                        System.out.println("Child Thread");
+                }
+        }
+
+        public static void main(String...args){
+
+                IsAliveExample thread = new IsAliveExample();
+                System.out.println("Is Thread Alive before start :"+thread.isAlive());
+                thread.start();
+                System.out.println("Is Thread Alive after start :"+thread.isAlive());
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic;
+
+public class SimpleThread extends Thread{
+
+        public static void main(String...args){
+                SimpleThread thread = new SimpleThread();
+                thread.start();
+                for(int i = 0; i < 10; i++){
+                        System.out.println("Main Thread :"+i);
+                }
+        }
+
+        public void run(){
+                for(int i = 0; i < 10; i++){
+                        System.out.print("\t\t\tChild Thread :"+i);
+                }
+        }
+}
+
+-----------------------------------------------------------------------
+
+
+----------------------------------------------------------------------
+SimpleThread.tx analysis
+
+Run # 1 :
+Main Thread :0                  Child Thread :0
+Main Thread :1                  Child Thread :1
+Main Thread :2                  Child Thread :2
+Main Thread :3                  Child Thread :3
+Main Thread :4                  Child Thread :4
+Main Thread :5                  Child Thread :5
+Main Thread :6Main Thread :7Main Thread :8Main Thread :9                        Child Thread :6
+                        Child Thread :7
+                        Child Thread :8
+                        Child Thread :9
+
+Analysis : 5 times two threads runs concurrently. Then Main Thread took the priority and completed then Child Thread finaly
+completed its task.
+
+Run # 2 :
+Main Thread :0                  Child Thread :0
+Main Thread :1                  Child Thread :1
+                        Child Thread :2
+Main Thread :2                  Child Thread :3
+Main Thread :3                  Child Thread :4
+Main Thread :4                  Child Thread :5
+Main Thread :5                  Child Thread :6
+Main Thread :6                  Child Thread :7
+Main Thread :7                  Child Thread :8
+Main Thread :8                  Child Thread :9
+Main Thread :9
+
+Run # 3 :
+
+Main Thread :0                  Child Thread :0
+Main Thread :1                  Child Thread :1
+Main Thread :2                  Child Thread :2
+                        Child Thread :3
+Main Thread :3                  Child Thread :4
+Main Thread :4                  Child Thread :5
+                        Child Thread :6
+Main Thread :5                  Child Thread :7
+                        Child Thread :8
+                        Child Thread :9
+Main Thread :6Main Thread :7Main Thread :8Main Thread :9
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.activeobjects;
+
+public class InnerSelfRun {
+
+        private Thread internalThread;
+        private volatile boolean noStopRequested;
+
+        public InnerSelfRun(){
+                noStopRequested = true;
+
+                Runnable r = new Runnable(){
+                        public void run(){
+                                try{
+                                        runWork();
+                                }catch(Exception e){
+                                        e.printStackTrace();
+                                }
+                        }
+                };
+
+                internalThread = new Thread(r, "InnerSelf");
+                internalThread.start();
+
+        }
+
+        private void runWork(){
+                while(noStopRequested){
+                        System.out.println("inwork -- still going...");
+                        try{
+                                Thread.sleep(700);
+                        }catch(InterruptedException e){
+                                e.printStackTrace();
+                        }
+                }
+        }
+
+        public void stopRequest(){
+                noStopRequested = false;
+                internalThread.interrupt();
+        }
+
+        public boolean isAlive(){
+                return internalThread.isAlive();
+        }
+
+        public static void main(String[] args) {
+                InnerSelfRun sr = new InnerSelfRun();
+                try {
+                         Thread.sleep(3000);
+                }catch ( InterruptedException x ) {
+
+                }
+                sr.stopRequest();
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.activeobjects;
+
+public class SelfRun implements Runnable{
+        private Thread internalThread;
+        private volatile boolean noStopRequested;
+
+        public SelfRun(){
+                System.out.println("in constructore - initializing");
+                noStopRequested = true;
+                internalThread = new Thread(this);
+                internalThread.start();
+        }
+
+        public void run(){
+                if(Thread.currentThread() != internalThread){
+                        throw new RuntimeException("Only internal thread is allowed to invoke the run()");
+                }
+
+                while(noStopRequested){
+                        try{
+                                Thread.sleep(700);
+                        }catch(InterruptedException ie){
+                                Thread.currentThread().interrupt();
+                        }
+                }
+        }
+
+        public void stopRequest(){
+                noStopRequested = false;
+                internalThread.interrupt();
+        }
+
+        public boolean isAlive(){
+                return internalThread.isAlive();
+        }
+
+        public static void main(String...args){
+                new SelfRun();
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.communication;
+
+public class CubbyHole {
+        private Object slot;
+
+        public CubbyHole(){
+
+        }
+
+        public synchronized void putIn(Object obj)throws InterruptedException{
+                print("in putIn() - entering");
+
+                while(slot != null){
+                        print("in putIn() - occupied about to wait");
+                        wait();
+                        print("in putIn() - notified back from wait");
+                }
+
+                slot = obj;
+                print("in putIn() - filled slot, about to notifyAll");
+                notifyAll();
+
+                print("in putIn() - leaving");
+        }
+
+
+        public synchronized Object takeOut()throws InterruptedException{
+                print("in takeOut() - entering");
+
+                while(slot == null){
+                        print("in takeOut() - empty, about to wait");
+                        wait();
+                        print("in takeOut() - notified, back from wait");
+                }
+                Object obj = slot;
+                slot = null;
+                print("in takeOut() - empty, about to wait");
+                notifyAll();
+
+                print("in takeOut() - leaving");
+                return obj;
+        }
+
+        public void print(String msg){
+                System.out.println(Thread.currentThread().getName() +" : "+msg);
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.communication;
+
+public class CubbyHoleTest {
+
+        private static void print(String msg){
+                System.out.println(Thread.currentThread().getName() +" : "+msg);
+        }
+
+        public static void main(String...args){
+                final CubbyHole cb = new CubbyHole();
+
+                Runnable r1 = new Runnable(){
+                        public void run(){
+
+                                try {
+                                        String str;
+                                        Thread.sleep(500);
+
+                                        str = "Multithreaded";
+                                        cb.putIn(str);
+                                        print("in run() - just put in: " + str);
+
+                                        str = "Programming";
+                                        cb.putIn(str);
+                                        print("in run() - just put in: " + str);
+
+                                        str = "with Java";
+                                        cb.putIn(str);
+                                        print("in run() - just put in: " + str);
+
+                                } catch (InterruptedException e) {
+                                        print("Interrupted");
+                                }
+                        }
+                };
+
+
+                Runnable r2 = new Runnable(){
+                        public void run(){
+
+                                try {
+                                        Object str;
+
+                                        str = cb.takeOut();
+                                        print("in run() - just took out: " + str);
+
+                                        Thread.sleep(500);
+
+                                        str = cb.takeOut();
+                                        print("in run() - just took out: " + str);
+
+                                        str = cb.takeOut();
+                                        print("in run() - just took out: " + str);
+
+                                } catch (InterruptedException e) {
+                                        print("Interrupted");
+                                }
+                        }
+                };
+
+                Thread t1 = new Thread(r1, "Thread-A");
+                t1.start();
+
+                Thread t2 = new Thread(r2, "Thread-B");
+                t2.start();
+        }
+}
+
+----------------------------------------------------------------------
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.communication;
+
+public class JoinDemo {
+
+        public static Thread launch(String name, long napTime){
+                final long sleepTime = napTime;
+
+                Runnable r = new Runnable(){
+                        public void run(){
+                                print("in run() - entering");
+                                try{
+                                        Thread.sleep(sleepTime);
+                                }catch(InterruptedException ie){
+                                        print("Interrupted");
+                                }finally{
+                                        print("in run() - leaving");
+                                }
+                        }
+                };
+
+                Thread t = new Thread(r, name);
+                t.start();
+                return t;
+        }
+
+        public static void print(String msg){
+                System.out.println(Thread.currentThread().getName() +" : "+msg);
+        }
+
+        public static void main(String...args){
+                Thread[] t = new Thread[3];
+
+                t[0] = launch("Thread-A", 2000);
+                t[1] = launch("Thread-B", 1000);
+                t[2] = launch("Thread-C", 3000);
+
+                for(int i = 0; i < t.length; i++){
+                        try {
+                                String idxStr = "t["+i+"]";
+                                String name = "[" + t[i].getName() + "]";
+                                print(idxStr + ".isAlive = "+t[i].isAlive() +"  "+name);
+                                print("about to do "+idxStr+".join() "+name);
+
+                                long start = System.currentTimeMillis();
+                                t[i].join();
+                                long stop = System.currentTimeMillis();
+
+                                print(idxStr + ".join() - took " +( stop - start ) + " ms " + name);
+
+                        } catch (InterruptedException e) {
+                                print("Interrupted");
+                        }
+                }
+        }
+}
+
+----------------------------------------------------------------------
+
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.communication;
+
+import java.io.*;
+
+public class PipedBytes {
+
+        public static void writeStuff(OutputStream rawOut) {
+                try {
+                        DataOutputStream out = new DataOutputStream(
+                                        new BufferedOutputStream(rawOut));
+
+                        int[] data = { 82, 105, 99, 104, 97, 114, 100, 32,
+                                                   72, 121, 100, 101 };
+
+                        for ( int i = 0; i < data.length; i++ ) {
+                                out.writeInt(data[i]);
+                        }
+
+                        out.flush();
+                        out.close();
+                } catch ( IOException x ) {
+                        x.printStackTrace();
+                }
+        }
+
+        public static void readStuff(InputStream rawIn){
+                try{
+                        DataInputStream inStream = new DataInputStream(new BufferedInputStream(rawIn));
+                        boolean eof = false;
+                        while(!eof){
+                                try{
+                                        int i = inStream.readInt();
+                                        System.out.println("Just Read :"+i);
+                                }catch(EOFException ex){
+                                        eof = true;
+                                }
+                        }
+                        System.out.println("Read all the data from the pipe");
+                }catch(IOException io){
+                        System.out.println("IOException occurred :"+io);
+                }
+        }
+
+        public static void main(String...args){
+                try{
+                        final PipedOutputStream out = new PipedOutputStream();
+                        final PipedInputStream in = new PipedInputStream(out);
+
+                        Runnable r1 = new Runnable(){
+                                public void run(){
+                                        writeStuff(out);
+                                }
+                        };
+
+                        Thread writer = new Thread(r1, "Writer");
+                        writer.start();
+
+
+                        Runnable r2 = new Runnable(){
+                                public void run(){
+                                        readStuff(in);
+                                }
+                        };
+
+                        Thread reader = new Thread(r2, "Reader");
+                        reader.start();
+
+                }catch(IOException io){
+                        System.out.println("IO Exceptio in main :"+io);
+                }
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.communication;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.PipedReader;
+import java.io.PipedWriter;
+import java.io.Reader;
+import java.io.Writer;
+
+public class PipedCharacters {
+
+        public static void writeStuff(Writer rawOut) {
+                try {
+                        BufferedWriter out = new BufferedWriter(rawOut);
+
+                        String[][] line = {
+                                        {"Murali", "Pagadala"},
+                                        {"Cigna", "Health", "Care"},
+                                        {"Bloomfield", "CT"}
+                        };
+
+                        for(int i = 0; i < line.length; i++){
+                                String[] word = line[i];
+
+                                for(int j = 0; j < word.length; i++){
+                                        if(j > 0){
+                                                out.write(" ");
+                                        }
+                                        out.write(word[j]);
+                                }
+                                out.newLine();
+                        }
+                        out.flush();
+                        out.close();
+                } catch ( IOException x ) {
+                        x.printStackTrace();
+                }
+        }
+
+        public static void readStuff(Reader rawIn){
+                try{
+                        BufferedReader  in = new BufferedReader (rawIn);
+                        String line = null;
+
+                        while((line = in.readLine()) != null){
+                                 System.out.println("Read line: " + line);
+                        }
+                        System.out.println("Read all the data from the pipe");
+                }catch(IOException io){
+                        System.out.println("IOException occurred :"+io);
+                }
+        }
+
+        public static void main(String...args){
+                try{
+                        final PipedWriter out = new PipedWriter();
+                        final PipedReader in = new PipedReader(out);
+
+                        Runnable r1 = new Runnable(){
+                                public void run(){
+                                        writeStuff(out);
+                                }
+                        };
+
+                        Thread writer = new Thread(r1, "Writer");
+                        writer.start();
+
+
+                        Runnable r2 = new Runnable(){
+                                public void run(){
+                                        readStuff(in);
+                                }
+                        };
+
+                        Thread reader = new Thread(r2, "Reader");
+                        reader.start();
+
+                }catch(IOException io){
+                        System.out.println("IO Exception in main :"+io);
+                }
+        }
+}
+
+----------------------------------------------------------------------
+
+-----------------------------------------------------------------------
+
+
+----------------------------------------------------------------------
+
+----------------------------------------------------------------------
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.swing;
+
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+
+public class BalanceLookup extends JPanel{
+
+        private JTextField acctTF;
+        private JTextField pinTF;
+        private JButton searchB;
+        private JButton cancelB;
+        private JLabel balanceL;
+
+        private volatile Thread lookupThread;
+
+        public BalanceLookup(){
+                buildGUI();
+                hookupEvents();
+        }
+
+        private void buildGUI(){
+                JLabel acctL = new JLabel("Account Number");
+                JLabel pinL = new JLabel("PIN");
+                acctTF = new JTextField(12);
+                pinTF = new JTextField(4);
+
+                JPanel dataEntryP = new JPanel();
+                dataEntryP.setLayout(new FlowLayout(FlowLayout.CENTER));
+                dataEntryP.add(acctL);
+                dataEntryP.add(acctTF);
+                dataEntryP.add(pinL);
+                dataEntryP.add(pinTF);
+
+                searchB = new JButton("Search");
+                cancelB = new JButton("Cancel Search");
+                cancelB.setEnabled(false);
+
+                JPanel innerButtonP = new JPanel();
+                innerButtonP.setLayout(new GridLayout(1, -1, 5, 5));
+                innerButtonP.add(searchB);
+                innerButtonP.add(cancelB);
+
+                JPanel buttonP = new JPanel();
+                buttonP.setLayout(new FlowLayout(FlowLayout.CENTER));
+                buttonP.add(innerButtonP);
+
+                JLabel balancePrefixL = new JLabel("Account Balance:");
+                balanceL = new JLabel("Balance Unknown");
+
+                JPanel balanceP = new JPanel();
+                balanceP.setLayout(new FlowLayout(FlowLayout.CENTER));
+                balanceP.add(balancePrefixL);
+                balanceP.add(balanceL);
+
+                JPanel northP = new JPanel();
+                northP.setLayout(new GridLayout(-1, 1, 5, 5));
+                northP.add(dataEntryP);
+                northP.add(buttonP);
+                northP.add(balanceP);
+
+                setLayout(new BorderLayout());
+                add(northP, BorderLayout.NORTH);
+        }
+
+        private void hookupEvents(){
+                searchB.addActionListener(new ActionListener(){
+                        public void actionPerformed(ActionEvent ae){
+                                search();
+                        }
+                });
+
+                cancelB.addActionListener(new ActionListener(){
+                        public void actionPerformed(ActionEvent ae){
+                                cancelSearch();
+                        }
+                });
+        }
+
+        private void search(){
+                ensureEventThread();
+                searchB.setEnabled(false);
+                cancelB.setEnabled(true);
+                balanceL.setText("Searching...");
+
+                String acc = acctTF.getText();
+                String pin = pinTF.getText();
+
+                lookupAsync(acc, pin);
+        }
+
+        private void setBalance(String balance){
+                ensureEventThread();
+                balanceL.setText(balance);
+                searchB.setEnabled(true);
+                cancelB.setEnabled(false);
+        }
+
+        private void cancelSearch(){
+                ensureEventThread();
+                cancelB.setEnabled(false);
+
+                if(lookupThread != null){
+                        lookupThread.interrupt();
+                }
+        }
+
+        private void ensureEventThread(){
+                if(!SwingUtilities.isEventDispatchThread()){
+                        throw new RuntimeException("Only Event dispatch thread should invoke this method");
+                }
+        }
+
+        private void lookupAsync(final String account, final String pin){
+
+                Runnable lookupRun = new Runnable(){
+                        public void run(){
+                                String bal = lookupBalance(account, pin);
+                                setBalanceSafely(bal);
+                        }
+                };
+
+                lookupThread = new Thread(lookupRun, "lookupThread");
+                lookupThread.start();
+        }
+
+        private void setBalanceSafely(final String balance){
+                Runnable run = new Runnable(){
+                        public void run(){
+                                try{
+                                        setBalance(balance);
+                                }catch(Exception e){
+                                        e.printStackTrace();
+                                }
+                        }
+                };
+                SwingUtilities.invokeLater(run);
+        }
+
+        private String lookupBalance(String account, String pin){
+                try{
+                        Thread.sleep(5000);
+                        return "1234.56";
+                }catch(InterruptedException ie){
+                        return "Search Cancelled";
+                }
+        }
+
+        public static void main(String...args){
+                BalanceLookup bl = new BalanceLookup();
+                JFrame frame = new JFrame("Balance Lookup");
+
+                frame.addWindowListener(new WindowAdapter(){
+                        public void windowClosing(WindowEvent we){
+                                System.exit(0);
+                        }
+                });
+
+                frame.setContentPane(bl);
+                frame.setSize(400, 150);
+                frame.setVisible(true);
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.swing;
+
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+
+public class BalanceLookupCantCancel extends JPanel{
+
+        private JTextField acctTF;
+        private JTextField pinTF;
+        private JButton searchB;
+        private JButton cancelB;
+        private JLabel balanceL;
+
+        public BalanceLookupCantCancel(){
+                buildGUI();
+                hookupEvents();
+        }
+
+        private void buildGUI(){
+                JLabel acctL = new JLabel("Account Number");
+                JLabel pinL = new JLabel("PIN");
+                acctTF = new JTextField(12);
+                pinTF = new JTextField(4);
+
+                JPanel dataEntryP = new JPanel();
+                dataEntryP.setLayout(new FlowLayout(FlowLayout.CENTER));
+                dataEntryP.add(acctL);
+                dataEntryP.add(acctTF);
+                dataEntryP.add(pinL);
+                dataEntryP.add(pinTF);
+
+                searchB = new JButton("Search");
+                cancelB = new JButton("Cancel Search");
+                cancelB.setEnabled(false);
+
+                JPanel innerButtonP = new JPanel();
+                innerButtonP.setLayout(new GridLayout(1, -1, 5, 5));
+                innerButtonP.add(searchB);
+                innerButtonP.add(cancelB);
+
+                JPanel buttonP = new JPanel();
+                buttonP.setLayout(new FlowLayout(FlowLayout.CENTER));
+                buttonP.add(innerButtonP);
+
+                JLabel balancePrefixL = new JLabel("Account Balance:");
+                balanceL = new JLabel("Balance Unknown");
+
+                JPanel balanceP = new JPanel();
+                balanceP.setLayout(new FlowLayout(FlowLayout.CENTER));
+                balanceP.add(balancePrefixL);
+                balanceP.add(balanceL);
+
+                JPanel northP = new JPanel();
+                northP.setLayout(new GridLayout(-1, 1, 5, 5));
+                northP.add(dataEntryP);
+                northP.add(buttonP);
+                northP.add(balanceP);
+
+                setLayout(new BorderLayout());
+                add(northP, BorderLayout.NORTH);
+        }
+
+        private void hookupEvents(){
+                searchB.addActionListener(new ActionListener(){
+                        public void actionPerformed(ActionEvent ae){
+                                search();
+                        }
+                });
+
+                cancelB.addActionListener(new ActionListener(){
+                        public void actionPerformed(ActionEvent ae){
+                                cancelSearch();
+                        }
+                });
+        }
+
+        private void search(){
+                searchB.setEnabled(false);
+                cancelB.setEnabled(true);
+                balanceL.setText("Searching...");
+
+                String acc = acctTF.getText();
+                String pin = pinTF.getText();
+
+                String bal = lookupBalance(acc, pin);
+                setBalance(bal);
+        }
+
+        private void setBalance(String balance){
+                balanceL.setText(balance);
+                searchB.setEnabled(true);
+                cancelB.setEnabled(false);
+        }
+
+        private void cancelSearch(){
+                System.out.println("in cancelSearch()");
+        }
+
+        private String lookupBalance(String account, String pin){
+                try{
+                        Thread.sleep(5000);
+                        return "1234.56";
+                }catch(InterruptedException ie){
+                        return "Search Cancelled";
+                }
+        }
+
+        public static void main(String...args){
+                BalanceLookupCantCancel bl = new BalanceLookupCantCancel();
+                JFrame frame = new JFrame("Balance Lookup - Can't Cancel");
+
+                frame.addWindowListener(new WindowAdapter(){
+                        public void windowClosing(WindowEvent we){
+                                System.exit(0);
+                        }
+                });
+
+                frame.setContentPane(bl);
+                frame.setSize(400, 150);
+                frame.setVisible(true);
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.swing;
+
+
+
+import java.awt.*;
+
+import javax.swing.*;
+
+public class CompMover {
+        private Component comp;
+        private int initX;
+        private int initY;
+        private int offsetX;
+        private int offsetY;
+        private boolean firstTime;
+        private Runnable updatePositionRun;
+
+        private Thread internalThread;
+        private volatile boolean noStopRequested;
+
+        public CompMover(Component comp,
+                                int initX, int initY,
+                                int offsetX, int offsetY
+                        ) {
+
+                this.comp = comp;
+                this.initX = initX;
+                this.initY = initY;
+                this.offsetX = offsetX;
+                this.offsetY = offsetY;
+
+                firstTime = true;
+
+                updatePositionRun = new Runnable() {
+                                public void run() {
+                                        updatePosition();
+                                }
+                        };
+
+                noStopRequested = true;
+                Runnable r = new Runnable() {
+                                public void run() {
+                                        try {
+                                                runWork();
+                                        } catch ( Exception x ) {
+                                                // in case ANY exception slips through
+                                                x.printStackTrace();
+                                        }
+                                }
+                        };
+
+                internalThread = new Thread(r);
+                internalThread.start();
+        }
+
+        private void runWork() {
+                while ( noStopRequested ) {
+                        try {
+                                Thread.sleep(200);
+                                SwingUtilities.invokeAndWait(updatePositionRun);
+                        } catch ( InterruptedException ix ) {
+                                // ignore
+                        } catch ( Exception x ) {
+                                x.printStackTrace();
+                        }
+                }
+        }
+
+        public void stopRequest() {
+                noStopRequested = false;
+                internalThread.interrupt();
+        }
+
+        public boolean isAlive() {
+                return internalThread.isAlive();
+        }
+
+        private void updatePosition() {
+                // should only be called by the *event* thread
+
+                if ( !comp.isVisible() ) {
+                        return;
+                }
+
+                Component parent = comp.getParent();
+                if ( parent == null ) {
+                        return;
+                }
+
+                Dimension parentSize = parent.getSize();
+                if ( ( parentSize == null ) &&
+                         ( parentSize.width < 1 ) &&
+                         ( parentSize.height < 1 )
+                   ) {
+
+                        return;
+                }
+
+                int newX = 0;
+                int newY = 0;
+
+                if ( firstTime ) {
+                        firstTime = false;
+                        newX = initX;
+                        newY = initY;
+                } else {
+                        Point loc = comp.getLocation();
+                        newX = loc.x + offsetX;
+                        newY = loc.y + offsetY;
+                }
+
+                newX = newX % parentSize.width;
+                newY = newY % parentSize.height;
+
+                if ( newX < 0 ) {
+                        // wrap around other side
+                        newX += parentSize.width;
+                }
+
+                if ( newY < 0 ) {
+                        // wrap around other side
+                        newY += parentSize.height;
+                }
+
+                comp.setLocation(newX, newY);
+                parent.repaint();
+        }
+
+        public static void main(String[] args) {
+                Component[] comp = new Component[6];
+
+                comp[0] = new ScrollText("Scrolling Text");
+                comp[1] = new ScrollText("Java Threads");
+                comp[2] = new SlideShow();
+                comp[3] = new SlideShow();
+                comp[4] = new DigitalTimer();
+                comp[5] = new DigitalTimer();
+
+                JPanel p = new JPanel();
+                p.setLayout(null); // no layout manager
+
+                for ( int i = 0; i < comp.length; i++ ) {
+                        p.add(comp[i]);
+
+                        int x = (int) ( 300 * Math.random() );
+                        int y = (int) ( 200 * Math.random() );
+                        int xOff = 2 - (int) ( 5 * Math.random() );
+                        int yOff = 2 - (int) ( 5 * Math.random() );
+
+                        new CompMover(comp[i], x, y, xOff, yOff);
+                }
+
+                JFrame f = new JFrame("CompMover Demo");
+                f.setContentPane(p);
+                f.setSize(400, 300);
+                f.setVisible(true);
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.swing;
+
+import java.awt.Color;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.lang.reflect.InvocationTargetException;
+import java.text.DecimalFormat;
+
+import javax.swing.BorderFactory;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+
+public class DigitalTimer extends JLabel{
+
+        private volatile String timeText;
+        private Thread internalThread;
+        private volatile boolean noStopRequested;
+
+        public DigitalTimer(){
+                setBorder(BorderFactory.createLineBorder(Color.black));
+                setHorizontalAlignment(SwingConstants.RIGHT);
+                setFont(new Font("SansSerif", Font.BOLD, 16));
+                setText("00000.0"); // use to size component
+                setMinimumSize(getPreferredSize());
+                setPreferredSize(getPreferredSize());
+                setSize(getPreferredSize());
+
+                timeText = "0.0";
+                setText(timeText);
+
+                noStopRequested = true;
+
+                Runnable run = new Runnable(){
+                        public void run(){
+                                try{
+                                        runWork();
+                                }catch(Exception e){
+                                        e.printStackTrace();
+                                }
+                        }
+                };
+
+                internalThread = new Thread(run, "DigitalTimer");
+                internalThread.start();
+        }
+
+        private void runWork() {
+                long startTime = System.currentTimeMillis();
+                int tenths = 0;
+                long normalSleepTime = 100;
+                long nextSleepTime = 100;
+                DecimalFormat fmt = new DecimalFormat("0.0");
+
+                Runnable updateText = new Runnable() {
+                                public void run() {
+                                        setText(timeText);
+                                }
+                        };
+
+                while ( noStopRequested ) {
+                        try {
+                                Thread.sleep(nextSleepTime);
+
+                                tenths++;
+                                long currTime = System.currentTimeMillis();
+                                long elapsedTime = currTime - startTime;
+
+                                nextSleepTime = normalSleepTime +
+                                        ( ( tenths * 100 ) - elapsedTime );
+
+                                if ( nextSleepTime < 0 ) {
+                                        nextSleepTime = 0;
+                                }
+
+                                timeText = fmt.format(elapsedTime / 1000.0);
+                                SwingUtilities.invokeAndWait(updateText);
+                        } catch ( InterruptedException ix ) {
+                                // stop running
+                                return;
+                        } catch ( InvocationTargetException x ) {
+                                // If an exception was thrown inside the
+                                // run() method of the updateText Runnable.
+                                x.printStackTrace();
+                        }
+                }
+        }
+
+        public void stopRequest() {
+                noStopRequested = false;
+                internalThread.interrupt();
+        }
+
+        public boolean isAlive() {
+                return internalThread.isAlive();
+        }
+
+        public static void main(String[] args) {
+                DigitalTimer dt = new DigitalTimer();
+
+                JPanel p = new JPanel(new FlowLayout());
+                p.add(dt);
+
+                JFrame f = new JFrame("DigitalTimer Demo");
+                f.setContentPane(p);
+                f.setSize(250, 100);
+                f.setVisible(true);
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.swing;
+
+import java.awt.Color;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.lang.reflect.InvocationTargetException;
+import java.text.DecimalFormat;
+
+import javax.swing.BorderFactory;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+
+public class DigitalTimer extends JLabel{
+
+        private volatile String timeText;
+        private Thread internalThread;
+        private volatile boolean noStopRequested;
+
+        public DigitalTimer(){
+                setBorder(BorderFactory.createLineBorder(Color.black));
+                setHorizontalAlignment(SwingConstants.RIGHT);
+                setFont(new Font("SansSerif", Font.BOLD, 16));
+                setText("00000.0"); // use to size component
+                setMinimumSize(getPreferredSize());
+                setPreferredSize(getPreferredSize());
+                setSize(getPreferredSize());
+
+                timeText = "0.0";
+                setText(timeText);
+
+                noStopRequested = true;
+
+                Runnable run = new Runnable(){
+                        public void run(){
+                                try{
+                                        runWork();
+                                }catch(Exception e){
+                                        e.printStackTrace();
+                                }
+                        }
+                };
+
+                internalThread = new Thread(run, "DigitalTimer");
+                internalThread.start();
+        }
+
+        private void runWork() {
+                long startTime = System.currentTimeMillis();
+                int tenths = 0;
+                long normalSleepTime = 100;
+                long nextSleepTime = 100;
+                DecimalFormat fmt = new DecimalFormat("0.0");
+
+                Runnable updateText = new Runnable() {
+                                public void run() {
+                                        setText(timeText);
+                                }
+                        };
+
+                while ( noStopRequested ) {
+                        try {
+                                Thread.sleep(nextSleepTime);
+
+                                tenths++;
+                                long currTime = System.currentTimeMillis();
+                                long elapsedTime = currTime - startTime;
+
+                                nextSleepTime = normalSleepTime +
+                                        ( ( tenths * 100 ) - elapsedTime );
+
+                                if ( nextSleepTime < 0 ) {
+                                        nextSleepTime = 0;
+                                }
+
+                                timeText = fmt.format(elapsedTime / 1000.0);
+                                SwingUtilities.invokeAndWait(updateText);
+                        } catch ( InterruptedException ix ) {
+                                // stop running
+                                return;
+                        } catch ( InvocationTargetException x ) {
+                                // If an exception was thrown inside the
+                                // run() method of the updateText Runnable.
+                                x.printStackTrace();
+                        }
+                }
+        }
+
+        public void stopRequest() {
+                noStopRequested = false;
+                internalThread.interrupt();
+        }
+
+        public boolean isAlive() {
+                return internalThread.isAlive();
+        }
+
+        public static void main(String[] args) {
+                DigitalTimer dt = new DigitalTimer();
+
+                JPanel p = new JPanel(new FlowLayout());
+                p.add(dt);
+
+                JFrame f = new JFrame("DigitalTimer Demo");
+                f.setContentPane(p);
+                f.setSize(250, 100);
+                f.setVisible(true);
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.swing;
+
+import java.awt.FlowLayout;
+
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+
+public class InvokeLaterDemo {
+
+        private static void print(String msg){
+                System.out.println(Thread.currentThread().getName() +" : "+msg);
+        }
+
+        public static void main(String...args){
+                final JLabel label = new JLabel("--------");
+
+                JPanel panel = new JPanel(new FlowLayout());
+                panel.add(label);
+
+                JFrame frame = new JFrame("InvokeLaterDemo");
+                frame.setContentPane(panel);
+                frame.setSize(300, 100);
+                frame.setVisible(true);
+
+                try{
+                        print("sleeping for 3 seconds");
+                        Thread.sleep(3000);
+                }catch(InterruptedException ie){
+                         print("interrupted while sleeping");
+                }
+
+                print("creating code block for event thread");
+                Runnable setText = new Runnable(){
+                        public void run(){
+                                try{
+                                        Thread.sleep(1000);
+                                        print("about to do setText()");
+                                        label.setText("New Text");
+                                }catch(InterruptedException ie){
+                                         print("interrupted in run");
+                                }
+
+                        }
+                };
+
+                print("about to invokeAndWait() ");
+                SwingUtilities.invokeLater(setText);
+                print("back from invodeAndWait()");
+
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.swing;
+
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.font.FontRenderContext;
+import java.awt.font.TextLayout;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+
+import javax.swing.JComponent;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+public class ScrollText extends JComponent{
+        private BufferedImage image;
+        private Dimension imageSize;
+        private volatile int currOffset;
+
+        private Thread internalThread;
+        private volatile boolean noStopRequested;
+
+
+        public ScrollText(String text){
+                currOffset = 0;
+                buildImage(text);
+
+                setMinimumSize(imageSize);
+                setPreferredSize(imageSize);
+                setMaximumSize(imageSize);
+                setSize(imageSize);
+
+                noStopRequested = true;
+
+                Runnable run = new Runnable(){
+                        public void run(){
+                                try{
+                                        runWork();
+                                }catch(Exception e){
+                                        e.printStackTrace();
+                                }
+                        }
+                };
+
+                internalThread = new Thread( run, "ScrollText");
+                internalThread.start();
+        }
+
+
+        private void buildImage(String text) {
+                // Request that the drawing be done with anti-aliasing
+                // turned on and the quality high.
+                RenderingHints renderHints = new RenderingHints(
+                        RenderingHints.KEY_ANTIALIASING,
+                        RenderingHints.VALUE_ANTIALIAS_ON);
+
+                renderHints.put(
+                        RenderingHints.KEY_RENDERING,
+                        RenderingHints.VALUE_RENDER_QUALITY);
+
+                // Create a scratch image for use in determining
+                // the text dimensions.
+                BufferedImage scratchImage = new BufferedImage(
+                                1, 1, BufferedImage.TYPE_INT_RGB);
+
+                Graphics2D scratchG2 = scratchImage.createGraphics();
+                scratchG2.setRenderingHints(renderHints);
+
+                Font font =
+                        new Font("Serif", Font.BOLD | Font.ITALIC, 24);
+
+                FontRenderContext frc = scratchG2.getFontRenderContext();
+                TextLayout tl = new TextLayout(text, font, frc);
+                Rectangle2D textBounds = tl.getBounds();
+                int textWidth = (int) Math.ceil(textBounds.getWidth());
+                int textHeight = (int) Math.ceil(textBounds.getHeight());
+
+                int horizontalPad = 10;
+                int verticalPad = 6;
+
+                imageSize = new Dimension(
+                                textWidth + horizontalPad,
+                                textHeight + verticalPad
+                        );
+
+                // Create the properly-sized image
+                image = new BufferedImage(
+                                imageSize.width,
+                                imageSize.height,
+                                BufferedImage.TYPE_INT_RGB);
+
+                Graphics2D g2 = image.createGraphics();
+                g2.setRenderingHints(renderHints);
+
+                int baselineOffset =
+                        ( verticalPad / 2 ) - ( (int) textBounds.getY());
+
+                g2.setColor(Color.white);
+                g2.fillRect(0, 0, imageSize.width, imageSize.height);
+
+                g2.setColor(Color.blue);
+                tl.draw(g2, 0, baselineOffset);
+
+                // Free-up resources right away, but keep "image" for
+                // animation.
+                scratchG2.dispose();
+                scratchImage.flush();
+                g2.dispose();
+        }
+
+        private void runWork(){
+                while(noStopRequested){
+                        try{
+                                Thread.sleep(100);  // 10 frames per second
+
+                                // adjust the scroll position
+                                currOffset =( currOffset + 1 ) % imageSize.width;
+
+                                // signal the event thread to call paint()
+                                repaint();
+                        }catch(InterruptedException ie){
+                                Thread.currentThread().interrupt();
+                        }
+                }
+        }
+
+        public  void stopRequest(){
+                noStopRequested = false;
+                internalThread.interrupt();
+        }
+
+        public boolean isAlive(){
+                return internalThread.isAlive();
+        }
+
+        public void paint(Graphics g) {
+                // Make sure to clip the edges, regardless of curr size
+                g.setClip(0, 0, imageSize.width, imageSize.height);
+
+                int localOffset = currOffset; // in case it changes
+                g.drawImage(image, -localOffset, 0, this);
+                g.drawImage(image, imageSize.width - localOffset, 0, this);
+
+                // draw outline
+                g.setColor(Color.black);
+                g.drawRect(0, 0, imageSize.width - 1, imageSize.height - 1);
+        }
+
+        public static void main(String...args){
+                ScrollText st = new ScrollText("Java can do animation");
+                JPanel panel = new JPanel(new FlowLayout());
+                panel.add(st);
+
+                JFrame frame = new JFrame("Scroll Text Demo");
+                frame.setContentPane(panel);
+                frame.setSize(400, 100);
+                frame.setVisible(true);
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.swing;
+
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+
+import javax.swing.JComponent;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+public class SlideShow extends JComponent{
+
+        private BufferedImage[] slide;
+        private Dimension slideSize;
+        private volatile int currSlide;
+
+        private Thread internalThread;
+        private volatile boolean noStopRequested;
+
+        public SlideShow(){
+                currSlide = 0;
+                slideSize = new Dimension(50, 50);
+                buildSlides();
+
+                setMinimumSize(slideSize);
+                setPreferredSize(slideSize);
+                setMaximumSize(slideSize);
+                setSize(slideSize);
+
+                noStopRequested = true;
+
+                Runnable run = new Runnable(){
+                        public void run(){
+                                try{
+                                        runWork();
+                                }catch(Exception e){
+                                        e.printStackTrace();
+                                }
+                        }
+                };
+
+                internalThread = new Thread(run, "SlideShow");
+                internalThread.start();
+        }
+
+        private void buildSlides() {
+                // Request that the drawing be done with anti-aliasing
+                // turned on and the quality high.
+                RenderingHints renderHints = new RenderingHints(
+                        RenderingHints.KEY_ANTIALIASING,
+                        RenderingHints.VALUE_ANTIALIAS_ON);
+
+                renderHints.put(
+                        RenderingHints.KEY_RENDERING,
+                        RenderingHints.VALUE_RENDER_QUALITY);
+
+                slide = new BufferedImage[20];
+
+                Color rectColor = new Color(100, 160, 250);   // blue
+                Color circleColor = new Color(250, 250, 150); // yellow
+
+                for ( int i = 0; i < slide.length; i++ ) {
+                        slide[i] = new BufferedImage(
+                                        slideSize.width,
+                                        slideSize.height,
+                                        BufferedImage.TYPE_INT_RGB);
+
+                        Graphics2D g2 = slide[i].createGraphics();
+                        g2.setRenderingHints(renderHints);
+
+                        g2.setColor(rectColor);
+                        g2.fillRect(0, 0, slideSize.width, slideSize.height);
+
+                        g2.setColor(circleColor);
+
+                        int diameter = 0;
+                        if ( i < ( slide.length / 2 ) ) {
+                                diameter = 5 + ( 8 * i );
+                        } else {
+                                diameter = 5 + ( 8 *  ( slide.length - i ) );
+                        }
+
+                        int inset = ( slideSize.width - diameter ) / 2;
+                        g2.fillOval(inset, inset, diameter, diameter);
+
+                        g2.setColor(Color.black);
+                        g2.drawRect(
+                                0, 0, slideSize.width - 1, slideSize.height - 1);
+
+                        g2.dispose();
+                }
+        }
+
+        public void paint(Graphics g) {
+                g.drawImage(slide[currSlide], 0, 0, this);
+        }
+
+        private void runWork(){
+                while ( noStopRequested ) {
+                        try {
+                                Thread.sleep(100);  // 10 frames per second
+
+                                // increment the slide pointer
+                                currSlide = ( currSlide + 1 ) % slide.length;
+
+                                // signal the event thread to call paint()
+                                repaint();
+                        } catch ( InterruptedException x ) {
+                                Thread.currentThread().interrupt();
+                        }
+                }
+        }
+
+        private void stopRequest(){
+                noStopRequested = false;
+                internalThread.interrupt();
+        }
+
+        public boolean isAlive() {
+                return internalThread.isAlive();
+        }
+
+        public static void main(String[] args) {
+                SlideShow ss = new SlideShow();
+
+                JPanel p = new JPanel(new FlowLayout());
+                p.add(ss);
+
+                JFrame f = new JFrame("SlideShow Demo");
+                f.setContentPane(p);
+                f.setSize(250, 150);
+                f.setVisible(true);
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.swing;
+
+public class ThreadList {
+
+        public static void main(String...args){
+                Thread[] threads = findAllThreads();
+                for(Thread thread : threads){
+                        System.out.println(thread.getId()+"\t"+thread.getName()+"\t"+thread.getPriority());
+                }
+        }
+
+        public static Thread[] findAllThreads(){
+                ThreadGroup threadGroup = Thread.currentThread().getThreadGroup();
+                ThreadGroup topGroup = threadGroup;
+
+                while(threadGroup != null){
+                        topGroup = threadGroup;
+                        threadGroup = threadGroup.getParent();
+                }
+
+                int estimatedSize = topGroup.activeCount()*2;
+                Thread[] slackList = new Thread[estimatedSize];
+
+                int actualSize = topGroup.enumerate(slackList);
+
+                Thread[] list = new Thread[actualSize];
+                System.arraycopy(slackList, 0, list, 0, actualSize);
+                return list;
+        }
+
+}
+
+-----------------------------------------------------------------------
+----------------------------------------------------------------------
+
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.synch;
+
+public class Deadlock {
+
+        private String objId;
+
+        public Deadlock(String objId){
+                this.objId = objId;
+        }
+
+        public void print(String msg){
+                threadPrint("objId = "+objId +"  -  "+msg);
+        }
+
+        public static void threadPrint(String msg){
+                System.out.println(Thread.currentThread().getName() +" : "+msg);
+        }
+
+        public synchronized void checkOther(Deadlock other){
+                print("entering checkOther()");
+
+                try{
+                        Thread.sleep(2000);
+                }catch(InterruptedException ie){
+
+                }
+                print("In checkOther() about to invoke other action");
+                other.action();
+
+                print("leaving checkOther()");
+        }
+
+        public synchronized void action(){
+                print("entering action()");
+                try{
+                        Thread.sleep(500);
+                }catch(InterruptedException ie){
+
+                }
+                print("leaving action()");
+        }
+
+        public static void main(String...args){
+                final Deadlock obj1 = new Deadlock("obj1");
+                final Deadlock obj2 = new Deadlock("obj2");
+
+                Runnable r1 = new Runnable(){
+                        public void run(){
+                                obj1.checkOther(obj2);
+                        }
+                };
+
+                Thread a = new Thread(r1, "Thread-A");
+                a.start();
+
+                try{
+                        Thread.sleep(500);
+                }catch(InterruptedException ie){
+
+                }
+
+                Runnable r2 = new Runnable(){
+                        public void run(){
+                                obj2.checkOther(obj1);
+                        }
+                };
+
+                Thread b = new Thread(r2, "Thread-B");
+                b.start();
+
+                try{
+                        Thread.sleep(5000);
+                }catch(InterruptedException ie){
+
+                }
+
+                threadPrint("just finished sleeping");
+
+                threadPrint("about to interrupt Thread-A");
+                a.interrupt();
+
+                try{
+                        Thread.sleep(1000);
+                }catch(InterruptedException ie){
+
+                }
+
+                threadPrint("about to interrupt Thread-B");
+                b.interrupt();
+
+                try{
+                        Thread.sleep(1000);
+                }catch(InterruptedException ie){
+
+                }
+
+                threadPrint("did that break the deadlock");
+
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.synch;
+
+public class DirtyRead {
+
+        private String fname;
+        private String lname;
+
+        public synchronized String getNames(){
+                return fname+", "+lname;
+        }
+
+        public synchronized void  setNames(String firstName, String lastName){
+                print("entering setNames()");
+                fname = firstName;
+
+                if(fname.length() < 5){
+                        try{
+                                Thread.sleep(1000);
+                        }catch(InterruptedException ie){
+
+                        }
+                }else{
+                        try{
+                                Thread.sleep(2000);
+                        }catch(InterruptedException ie){
+
+                        }
+                }
+                lname = lastName;
+                print("leaving setNames() - " + lname + ", " + fname);
+        }
+
+        public static void print(String msg){
+                System.out.println(Thread.currentThread().getName() +" : "+msg);
+        }
+
+        public static void main(String...args){
+                final DirtyRead dr = new DirtyRead();
+                dr.setNames("George", "Washington");
+
+                Runnable runA = new Runnable(){
+                        public void run(){
+                                dr.setNames("Abe", "Linclon");
+                        }
+                };
+
+                Thread t = new Thread( runA, "Thread-A");
+                t.start();
+
+                try {
+                        Thread.sleep(200);
+                }catch ( InterruptedException x ) {
+
+                }
+
+                Runnable runB = new Runnable(){
+                        public void run(){
+                                 print("getNames()=" + dr.getNames());
+                        }
+                };
+
+                Thread t2 = new Thread(runB, "Thread-B");
+                t2.start();
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.synch;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+public class SafeIterator {
+
+        public static void main(String...args)throws Exception{
+                final List<String> wordList = Collections.synchronizedList(new ArrayList<String>());
+
+                Runnable r = new Runnable(){
+                        public void run(){
+                                for(int i = 0 ; i < 10; i++){
+                                        wordList.add(String.valueOf(i));
+                                }
+                        }
+                };
+
+                Thread t = new Thread(r, "Thread-A");
+                t.start();
+
+                wordList.add("Iterators");
+                wordList.add("need");
+                wordList.add("Special");
+                wordList.add("Attention");
+
+                synchronized(wordList){
+                        for(String word : wordList){
+                                System.out.println(word);
+                        }
+                }
+                Thread.sleep(5000);
+                for(String word : wordList){
+                        System.out.println(word);
+                }
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.synch;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+public class SafeListCopy {
+
+        public static void printWords(String...words){
+                for(String word : words){
+                        System.out.println(word);
+                }
+        }
+
+
+        public static void main(String...args){
+                List<String> wordList = Collections.synchronizedList(new ArrayList<String>());
+                wordList.add("Synchronization");
+                wordList.add("is");
+                wordList.add("Important");
+
+                //1st technique
+                String[] wordA = wordList.toArray(new String[0]);
+                printWords(wordA);
+
+                String[] wordB;
+                synchronized(wordList){
+                        int size = wordList.size();
+                        wordB = new String[size];
+                        wordList.toArray(wordB);
+                }
+                printWords(wordB);
+
+                String[] wordC;
+
+                synchronized(wordList){
+                        wordC = wordList.toArray(new String[wordList.size()]);
+                }
+                printWords(wordC);
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.synch;
+
+import java.util.Vector;
+
+public class SafeVectorCopy {
+
+        public static void main(String...args){
+                Vector<String> vector = new Vector<String>();
+
+                vector.add("Synchronization");
+                vector.add("is");
+                vector.add("Important");
+
+                String[] word;
+
+                synchronized(vector){
+                        int size = vector.size();
+                        word = new String[size];
+                        for(int i = 0; i < size; i++){
+                                word[i] = vector.get(i);
+                        }
+                }
+
+                for(String s : word){
+                        System.out.println(s);
+                }
+
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.synch;
+
+public class StaticBlock {
+
+        public static synchronized void staticA(){
+                System.out.println("entering staticA()");
+                try{
+                        Thread.sleep(5000);
+                }catch(InterruptedException ie){
+
+                }
+                System.out.println("leaving staticA()");
+        }
+
+
+        public static  void staticB(){
+                System.out.println("entering staticB()");
+                synchronized(StaticBlock.class){
+                        System.out.println("Inside StaticBlock");
+                        try{
+                                Thread.sleep(2000);
+                        }catch(InterruptedException ie){
+
+                        }
+                }
+                System.out.println("leaving staticB()");
+        }
+
+        public static void main(String...args){
+                Runnable a = new Runnable(){
+                        public void run(){
+                                StaticBlock.staticA();
+                        }
+                };
+
+                Thread t1 = new Thread(a, "Thread-A");
+                t1.start();
+
+                try{
+                        Thread.sleep(200);
+                }catch(InterruptedException ie){
+
+                }
+
+                Runnable b = new Runnable(){
+                        public void run(){
+                                StaticBlock.staticB();
+                        }
+                };
+
+                Thread t2 = new Thread(b, "Thread-B");
+                t2.start();
+
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.synch;
+
+public class StaticNeedSync {
+
+        private static int nextSerialNumber = 10001;
+
+        public static synchronized int  getNextSerialNumber(){
+                int num = nextSerialNumber;
+                try {
+                        Thread.sleep(1000);
+                }
+                catch ( InterruptedException x ) {
+
+                }
+                nextSerialNumber++;
+                return num;
+        }
+
+        public static void print(String msg){
+                System.out.println(Thread.currentThread().getName() +" : "+msg);
+        }
+
+        public static void main(String...args){
+                try{
+                        Runnable r = new Runnable(){
+                                public void run(){
+                                        print("getNextSerialNumber  - "+getNextSerialNumber());
+                                }
+                        };
+
+                        Thread t1 = new Thread(r, "Thread-A");
+                        t1.start();
+
+                        Thread.sleep(1500);
+
+                        Thread t2 = new Thread(r, "Thread-B");
+                        t2.start();
+
+                        Thread.sleep(500);
+
+                        Thread t3 = new Thread(r, "Thread-C");
+                        t3.start();
+
+                        Thread.sleep(2500);
+
+                        Thread t4 = new Thread(r, "Thread-D");
+                        t4.start();
+
+                }catch(InterruptedException ie){
+                        System.out.println("Interrupted...");
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.basic.synch;
+
+public class Volatile implements Runnable {
+        // not marked as 'volatile', but it should be!
+        private int value;
+
+        private volatile boolean missedIt;
+
+        // doesn't need to be volatile-doesn't change
+        private long creationTime;
+
+        public Volatile() {
+                value = 10;
+                missedIt = false;
+                creationTime = System.currentTimeMillis();
+        }
+
+        public void run() {
+                print("entering run()");
+
+                // each time, check to see if 'value' is different
+                while ( value < 20 ) {
+                        // Used to break out of the loop if change to
+                        // value is missed.
+                        if  ( missedIt ) {
+                                int currValue = value;
+
+                                // Simply execute a synchronized statement on an
+                                // arbitrary object to see the effect.
+                                Object lock = new Object();
+                                synchronized ( lock ) {
+                                        // do nothing!
+                                }
+
+                                int valueAfterSync = value;
+
+                                print("in run() - see value=" + currValue +", but rumor has it that it changed!");
+                                print("in run() - valueAfterSync=" + valueAfterSync);
+
+                                break;
+                        }
+                }
+
+                print("leaving run()");
+        }
+
+        public void workMethod() throws InterruptedException {
+                print("entering workMethod()");
+
+                print("in workMethod() - about to sleep for 2 seconds");
+                Thread.sleep(2000);
+
+                value = 50;
+                print("in workMethod() - just set value=" + value);
+
+                print("in workMethod() - about to sleep for 5 seconds");
+                Thread.sleep(5000);
+
+                missedIt = true;
+                print("in workMethod() - just set missedIt=" + missedIt);
+
+                print("in workMethod() - about to sleep for 3 seconds");
+                Thread.sleep(3000);
+
+                print("leaving workMethod()");
+        }
+
+        private void print(String msg) {
+                // This method could have been simplified by using
+                // functionality present in the java.text package,
+                // but did not take advantage of it since that package
+                // is not present in JDK1.0.
+
+                long interval = System.currentTimeMillis() - creationTime;
+
+                String tmpStr = "    " + ( interval / 1000.0 ) + "000";
+
+                int pos = tmpStr.indexOf(".");
+                String secStr = tmpStr.substring(pos - 2, pos + 4);
+
+                String nameStr = "        " +Thread.currentThread().getName();
+
+                nameStr = nameStr.substring(nameStr.length() - 8,nameStr.length());
+
+                System.out.println(secStr + " " + nameStr + ": " + msg);
+        }
+
+        public static void main(String[] args) {
+                try {
+                        Volatile vol = new Volatile();
+
+                        // slight pause to let some time elapse
+                        Thread.sleep(100);
+
+                        Thread t = new Thread(vol);
+                        t.start();
+
+                        // slight pause to allow run() to go first
+                        Thread.sleep(100);
+
+                        vol.workMethod();
+                } catch ( InterruptedException x ) {
+                        System.err.println("one of the sleeps was interrupted");
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.fifo;
+
+
+
+public class ObjectFIFO extends Object {
+        private Object[] queue;
+        private int capacity;
+        private int size;
+        private int head;
+        private int tail;
+
+        public ObjectFIFO(int cap) {
+                capacity = ( cap > 0 ) ? cap : 1; // at least 1
+                queue = new Object[capacity];
+                head = 0;
+                tail = 0;
+                size = 0;
+        }
+
+        public int getCapacity() {
+                return capacity;
+        }
+
+        public synchronized int getSize() {
+                return size;
+        }
+
+        public synchronized boolean isEmpty() {
+                return ( size == 0 );
+        }
+
+        public synchronized boolean isFull() {
+                return ( size == capacity );
+        }
+
+        public synchronized void add(Object obj)
+                        throws InterruptedException {
+
+                waitWhileFull();
+
+                queue[head] = obj;
+                head = ( head + 1 ) % capacity;
+                size++;
+
+                notifyAll(); // let any waiting threads know about change
+        }
+
+        public synchronized void addEach(Object[] list)
+                        throws InterruptedException {
+
+                //
+                // You might want to code a more efficient
+                // implementation here ... (see ByteFIFO.java)
+                //
+
+                for ( int i = 0; i < list.length; i++ ) {
+                        add(list[i]);
+                }
+        }
+
+        public synchronized Object remove()
+                        throws InterruptedException {
+
+                waitWhileEmpty();
+
+                Object obj = queue[tail];
+
+                // don't block GC by keeping unnecessary reference
+                queue[tail] = null;
+
+                tail = ( tail + 1 ) % capacity;
+                size--;
+
+                notifyAll(); // let any waiting threads know about change
+
+                return obj;
+        }
+
+        public synchronized Object[] removeAll()
+                        throws InterruptedException {
+
+                //
+                // You might want to code a more efficient
+                // implementation here ... (see ByteFIFO.java)
+                //
+
+                Object[] list = new Object[size]; // use the current size
+
+                for ( int i = 0; i < list.length; i++ ) {
+                        list[i] = remove();
+                }
+
+                // if FIFO was empty, a zero-length array is returned
+                return list;
+        }
+
+        public synchronized Object[] removeAtLeastOne()
+                        throws InterruptedException {
+
+                waitWhileEmpty(); // wait for a least one to be in FIFO
+                return removeAll();
+        }
+
+        public synchronized boolean waitUntilEmpty(long msTimeout)
+                        throws InterruptedException {
+
+                if ( msTimeout == 0L ) {
+                        waitUntilEmpty();  // use other method
+                        return true;
+                }
+
+                // wait only for the specified amount of time
+                long endTime = System.currentTimeMillis() + msTimeout;
+                long msRemaining = msTimeout;
+
+                while ( !isEmpty() && ( msRemaining > 0L ) ) {
+                        wait(msRemaining);
+                        msRemaining = endTime - System.currentTimeMillis();
+                }
+
+                // May have timed out, or may have met condition,
+                // calc return value.
+                return isEmpty();
+        }
+
+        public synchronized void waitUntilEmpty()
+                        throws InterruptedException {
+
+                while ( !isEmpty() ) {
+                        wait();
+                }
+        }
+
+        public synchronized void waitWhileEmpty()
+                        throws InterruptedException {
+
+                while ( isEmpty() ) {
+                        wait();
+                }
+        }
+
+        public synchronized void waitUntilFull()
+                        throws InterruptedException {
+
+                while ( !isFull() ) {
+                        wait();
+                }
+        }
+
+        public synchronized void waitWhileFull()
+                        throws InterruptedException {
+
+                while ( isFull() ) {
+                        wait();
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.threadpool;
+
+import com.thread.examples.paulhade.fifo.ObjectFIFO;
+
+
+public class ThreadPool {
+
+        private ObjectFIFO idleWorkers;
+        private ThreadPoolWorker[] workerList;
+
+        public ThreadPool(int numberOfThreads){
+                numberOfThreads = Math.max(1, numberOfThreads);
+
+                idleWorkers = new ObjectFIFO(numberOfThreads);
+                workerList = new ThreadPoolWorker[numberOfThreads];
+
+                for(int i = 0; i < workerList.length; i++){
+                        workerList[i] = new ThreadPoolWorker(idleWorkers);
+                }
+        }
+
+        public void execute(Runnable target)throws InterruptedException{
+                ThreadPoolWorker worker = (ThreadPoolWorker)idleWorkers.remove();
+                worker.process(target);
+        }
+
+        public void stopRequestIdleWorkers(){
+                try{
+                        Object[] idle = idleWorkers.removeAll();
+                        for(int i = 0; i < idle.length; i++){
+                                ( (ThreadPoolWorker) idle[i] ).stopRequest();
+                        }
+                }catch(InterruptedException ie){
+                        Thread.currentThread().interrupt();
+                }
+        }
+
+        public void stopRequestAllWorkers(){
+                stopRequestIdleWorkers();
+                try {
+                        Thread.sleep(250);
+                } catch (InterruptedException e) {
+                        e.printStackTrace();
+                }
+
+                for (int i = 0; i < workerList.length; i++) {
+                        if (workerList[i].isAlive()) {
+                                workerList[i].stopRequest();
+                        }
+                }
+        }
+}
+
+-----------------------------------------------------------------------
+package com.thread.examples.paulhade.threadpool;
+
+public class ThreadPoolMain {
+
+        public static void main(String...args){
+
+                try {
+                        ThreadPool pool = new ThreadPool(3);
+
+                        Runnable ra = makeRunnable("RA", 3000);
+                        pool.execute(ra);
+
+                        Runnable rb = makeRunnable("RB", 1000);
+                        pool.execute(rb);
+
+                        Runnable rc = makeRunnable("RC", 2000);
+                        pool.execute(rc);
+
+                        Runnable rd = makeRunnable("RD", 60000);
+                        pool.execute(rd);
+
+                        Runnable re = makeRunnable("RE", 60000);
+                        pool.execute(re);
+
+                        pool.stopRequestIdleWorkers();
+                        Thread.sleep(2000);
+
+                        pool.stopRequestIdleWorkers();
+                        Thread.sleep(5000);
+
+                        pool.stopRequestAllWorkers();
+
+
+                } catch (InterruptedException e) {
+                        e.printStackTrace();
+                }
+        }
+
+        public static Runnable makeRunnable(final String name, final long firstDelay){
+                return new Runnable(){
+                        public void run(){
+                                System.out.println(name +" starting up.");
+                                try {
+                                        Thread.sleep(firstDelay);
+                                        System.out.println(name +" doing some stuff.");
+
+                                        Thread.sleep(2000);
+                                        System.out.println(name+" leaving.");
+                                } catch (InterruptedException e) {
+                                        System.out.println(name +" go interrupted ");
+                                        return;
+                                }catch(Exception e){
+                                        e.printStackTrace();
+                                }
+                        }
+
+                        public String getName(){
+                                return name;
+                        }
+                };
+        }
+}
+----------------------------------------------------------------------
+package com.thread.examples.paulhade.threadpool;
+
+import com.thread.examples.paulhade.fifo.ObjectFIFO;
+
+public class ThreadPoolWorker {
+
+        private static int nextWorkerID = 0;
+
+        private ObjectFIFO idleWorkers;
+        private int workerID;
+        private ObjectFIFO handOffBox;
+
+        private Thread internalThread;
+        private volatile boolean noStopRequested;
+
+        public ThreadPoolWorker(ObjectFIFO idleWorkers){
+                this.idleWorkers = idleWorkers;
+                workerID = getNextWorkerID();
+                handOffBox = new ObjectFIFO(1);
+
+                noStopRequested = true;
+
+                Runnable r = new Runnable(){
+                        public void run(){
+                                try{
+                                        runWork();
+                                }catch(Exception e){
+                                        e.printStackTrace();
+                                }
+                        }
+                };
+
+                Thread internalThread = new Thread(r);
+                internalThread.start();
+        }
+
+        public void process(Runnable target)throws InterruptedException{
+                handOffBox.add(target);
+        }
+
+        public void runWork(){
+                while(noStopRequested){
+                        System.out.println("Worker ID :"+workerID +" : ready for work");
+                        try {
+                                idleWorkers.add(this);
+                                Runnable r = (Runnable) handOffBox.remove();
+                                System.out.println("Worker ID :"+workerID +" : starting execution of new Runnable :"+r);
+                                runIt(r);
+                        } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                e.printStackTrace();
+                        }
+                }
+        }
+
+        private void runIt(Runnable r){
+                try {
+                        r.run();
+                } catch (Exception e) {
+                        System.out.println("Exception throws from run()");
+                        e.printStackTrace();
+                }finally{
+                        Thread.interrupted();
+                }
+        }
+
+        public synchronized static int getNextWorkerID(){
+                int id = nextWorkerID;
+                nextWorkerID++;
+                return id;
+        }
+
+        public void stopRequest(){
+                System.out.println("Worker ID :"+workerID +" :stopRequest() received.");
+                noStopRequested = false;
+                internalThread.interrupt();
+        }
+
+        public boolean isAlive(){
+                return internalThread.isAlive();
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.race;
+
+import static java.lang.System.out;
+
+public class Egoist extends Thread {
+
+        private char c;
+        private OutChar outChar;
+
+        public Egoist(){
+
+        }
+
+        public Egoist(char c, OutChar outChar){
+                this.c = c;
+                this.outChar = outChar;
+        }
+
+        public void run(){
+                outChar.out(this.c);
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.race;
+
+import static java.lang.System.out;
+
+public class OutChar {
+
+        public void  out(char c){
+                out.print(Thread.currentThread().getName() +" : ");
+                for( int i = 0; i < 50; i++){
+                        out.print(c);
+                }
+                out.println();
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.race;
+
+public class Race0 extends Thread{
+        static Shared2 s;
+        static volatile boolean done = false;
+
+        public static void main(String... args){
+                Thread t = new Race0();
+                s = new Shared2();
+                try{
+                        t.start();
+                        while(!done){
+                                s.bump();
+                                Thread.sleep(30);
+                        }
+                        t.join();
+                }
+                catch(InterruptedException ie){
+                        return;
+                }
+        }
+
+        public void run() {
+                int i;
+                try {
+                        for (i=0;i<1000;i++) {
+                                if (i%60==0){
+                                        System.out.println();
+                                }
+                                System.out.print(".X".charAt(s.diff()));
+                                sleep(20);
+                        }
+                        System.out.println();
+                        done=true;
+                }
+                catch (InterruptedException e){ return; }
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.race;
+
+import static java.lang.System.out;
+
+public class Sched extends Thread{
+
+        public static void main(String...args){
+                Thread t;
+                int i;
+                OutChar outChar = new OutChar();
+                for( i = 'A'; i < 'H'; i++){
+                        t = new Egoist((char)i, outChar);
+                        t.setPriority(Thread.NORM_PRIORITY-1);
+                        t.start();
+                }
+
+                t = new Sched();
+                t.setPriority(Thread.MAX_PRIORITY);
+                t.setDaemon(true);
+                t.start();
+
+        }
+
+        public void run(){
+                out.println("Main Thread :"+Thread.currentThread().getName());
+                while(true){
+                        try {
+                                Thread.sleep(5);
+                        } catch (InterruptedException e) {
+                                e.printStackTrace();
+                        }
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.race;
+
+public class Shared0 {
+
+        protected int x;
+        protected int y;
+
+        public synchronized int diff(){
+                return x-y;
+        }
+
+        public synchronized void bump()throws InterruptedException{
+                x++;
+                Thread.sleep(9);
+                y++;
+        }
+
+        public static void main(String...args) throws Exception{
+                Shared0 s = new Shared0();
+                s.bump();
+                s.bump();
+                System.out.println("X="+s.x +" : Y="+s.y);
+                System.out.print(s.diff());
+                System.out.print(".X".charAt(s.diff()));
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.race;
+
+import com.thread.examples.lock.Lock;
+
+public class Shared2 {
+
+        private int x=0;
+        private int y=0;
+
+        private Lock mutex = new Lock();
+
+        public int diff() throws InterruptedException{
+                int temp;
+                mutex.lock();
+                try{
+                        temp = x-y;
+                }finally{
+                        mutex.unlock();
+                }
+                return temp;
+        }
+
+        public void bump()throws InterruptedException{
+                mutex.lock();
+                try{
+                        x++;
+                        Thread.sleep(9);
+                        y++;
+                }finally{
+                        mutex.unlock();
+                }
+        }
+}
+
+-----------------------------------------------------------------------
+package com.thread.examples.swing.basics;
+
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
+
+public class PaintDemo {
+
+        private JLabel jlabel;
+        private PaintPanel paintPanel;
+
+        public PaintDemo(){
+                JFrame jframe = new JFrame("Paint Demo");
+                jframe.setSize(200, 150);
+                jframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+                paintPanel = new PaintPanel();
+                jframe.add(paintPanel);
+                jframe.setVisible(true);
+        }
+
+        public static void main(String...args){
+                try{
+                        SwingUtilities.invokeLater( new Runnable(){
+                                public void run(){
+                                        new PaintDemo();
+                                }
+                        });
+                }catch(Exception e){
+
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.swing.basics;
+
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Insets;
+import java.util.Random;
+
+import javax.swing.BorderFactory;
+import javax.swing.JPanel;
+
+public class PaintPanel extends JPanel {
+
+        private Insets insets;
+        private Random random;
+
+        public PaintPanel(){
+                setBorder(BorderFactory.createLineBorder(Color.RED, 5));
+                random = new Random();
+        }
+
+        protected void paintComponent(Graphics g){
+                super.paintComponent(g);
+                int x;
+                int y;
+                int x2;
+                int y2;
+
+                int height = getHeight();
+                int width = getWidth();
+
+                insets = getInsets();
+
+                for(int i = 0; i < 10; i++){
+                        x = random.nextInt(width-insets.left);
+                        y = random.nextInt(height-insets.bottom);
+                        x2 = random.nextInt(width-insets.left);
+                        y2 = random.nextInt(height-insets.bottom);
+
+                        g.drawLine(x, y, x2, y2);
+                }
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.swing.basics;
+
+import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.JApplet;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
+
+public class SwingAppletDemo extends JApplet{
+
+        private JLabel jlabel;
+        private JButton alpha;
+        private JButton beta;
+
+        public void init(){
+                try{
+                        SwingUtilities.invokeAndWait(new Runnable(){
+                                public void run(){
+                                        makeGUI();
+                                }
+                        });
+                }catch(Exception e){
+                        System.out.println("Can't initialize the applet :"+e);
+                }
+        }
+
+        public void makeGUI(){
+                setLayout(new FlowLayout());
+
+                alpha = new JButton("Alpha");
+                beta = new JButton("Beta");
+
+                alpha.addActionListener( new ActionListener(){
+                        public void actionPerformed(ActionEvent ae){
+                                jlabel.setText("Alpha was pressed");
+                        }
+                });
+
+                beta.addActionListener(new ActionListener(){
+                        public void actionPerformed(ActionEvent ae){
+                                jlabel.setText("Beta was pressed");
+                        }
+                });
+
+                add(alpha);
+                add(beta);
+
+                jlabel = new JLabel("Press a button");
+
+                add( jlabel);
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.swing.basics;
+
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
+
+public class SwingDemo {
+
+        public SwingDemo(){
+
+                JFrame jframe = new JFrame("A Simple Swing Application");
+                jframe.setSize(270, 100);
+                jframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+                JLabel jlabel = new JLabel("Swing Label");
+
+                jframe.add(jlabel);
+                jframe.setVisible(true);
+        }
+
+        public static void main(String...args){
+                SwingUtilities.invokeLater( new Runnable(){
+                        public void run(){
+                                new SwingDemo();
+                        }
+                });
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.swing.basics;
+
+import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
+
+public class SwingEventDemo {
+
+        private JLabel jlabel;
+
+        public SwingEventDemo(){
+                JFrame jframe = new JFrame("An Event Example");
+                jframe.setLayout(new FlowLayout());
+                jframe.setSize(220, 90);
+                jframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+                JButton alpha = new JButton("Alpha");
+                JButton beta  = new JButton("Beta");
+
+                alpha.addActionListener( new ActionListener(){
+                        public void actionPerformed(ActionEvent ae){
+                                jlabel.setText("Alpha was clicked");
+                        }
+                });
+
+                beta.addActionListener( new ActionListener(){
+                        public void actionPerformed(ActionEvent ae){
+                                jlabel.setText("Beta was pressed");
+                        }
+                });
+
+                jlabel = new JLabel("Press a Button");
+                jframe.add(alpha);
+                jframe.add(beta);
+                jframe.add(jlabel);
+                jframe.setVisible(true);
+        }
+
+        public static void main(String...args){
+                SwingUtilities.invokeLater(new Runnable(){
+                        public void run(){
+                                new SwingEventDemo();
+                        }
+                });
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.swing.basics;
+
+import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
+
+public class SwingEventDemo {
+
+        private JLabel jlabel;
+
+        public SwingEventDemo(){
+                JFrame jframe = new JFrame("An Event Example");
+                jframe.setLayout(new FlowLayout());
+                jframe.setSize(220, 90);
+                jframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+                JButton alpha = new JButton("Alpha");
+                JButton beta  = new JButton("Beta");
+
+                alpha.addActionListener( new ActionListener(){
+                        public void actionPerformed(ActionEvent ae){
+                                jlabel.setText("Alpha was clicked");
+                        }
+                });
+
+                beta.addActionListener( new ActionListener(){
+                        public void actionPerformed(ActionEvent ae){
+                                jlabel.setText("Beta was pressed");
+                        }
+                });
+
+                jlabel = new JLabel("Press a Button");
+                jframe.add(alpha);
+                jframe.add(beta);
+                jframe.add(jlabel);
+                jframe.setVisible(true);
+        }
+
+        public static void main(String...args){
+                SwingUtilities.invokeLater(new Runnable(){
+                        public void run(){
+                                new SwingEventDemo();
+                        }
+                });
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch02;
+
+//public class OurClass extends Thread{
+public class OurClass implements Runnable{
+        public void run(){
+                Thread currentThread = Thread.currentThread();
+                System.out.println(currentThread.getName() +" : "+currentThread.getId());
+                for(int i = 0; i < 5; i++){
+                        System.out.println("Batch Instance :"+i);
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch02;
+
+import java.applet.Applet;
+import java.awt.Graphics;
+
+//public class OurClassApplet extends Applet {
+public class OurClassApplet extends Applet implements Runnable{
+
+        public void init(){
+                Thread currentThread = Thread.currentThread();
+                System.out.println(currentThread.getName() +" : "+currentThread.getId());
+                System.out.println("init() [enter]");
+                //OurClass oc = new OurClass();
+                //oc.start();
+                //Thread t = new Thread(oc);
+                Thread t = new Thread(this);
+                t.start();
+        }
+
+        public void run(){
+                Thread currentThread = Thread.currentThread();
+                System.out.println(currentThread.getName() +" : "+currentThread.getId());
+                for(int i = 0; i < 5; i++){
+                        System.out.println("Batch Instance :"+i);
+                }
+        }
+
+
+        public void start(){
+                System.out.println("start() [enter]");
+        }
+
+        public void stop(){
+                System.out.println("stop() [enter]");
+        }
+
+        public void destroy(){
+                System.out.println("destroy() [enter]");
+        }
+
+        public void paint(Graphics g){
+                System.out.println("paint(Graphics g) [enter]");
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch02;
+
+public class Test_1 {
+
+    static  boolean keepRunning = true;
+
+    public static void main(String[] args) throws InterruptedException {
+
+        (new Thread() {
+            public void run() {
+                while (keepRunning) {
+                        System.out.println("Hello");
+                }
+            }
+        }).start();
+
+        System.out.println(keepRunning);
+        Thread.sleep(1000);
+        keepRunning = false;
+        System.out.println(keepRunning);
+
+        // main thread ends here, but the while-thread keeps running.
+        // (but not if you change the keepRunning to volatile).
+    }
+}
+-----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch02;
+
+public class Test_2 {
+
+private static boolean running = true;
+
+public static void main(String[] args) throws InterruptedException {
+    Thread t = new Thread() {
+        public void run() {
+            while( running ) {
+                System.out.println( "Running.");
+            }
+            long l = System.nanoTime();
+            System.out.println( "Stopped at "+l);
+
+        }
+    };
+    t.start();
+    Thread.sleep( 1 );
+    running = false;
+    long l = System.nanoTime();
+    System.out.println( "Stopping at "+l);
+}
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch02;
+
+import java.awt.Component;
+
+public class TimerThread extends Thread{
+
+        private Component component;
+        private long timeDifference;
+        volatile boolean shouldRun;
+
+        public TimerThread(Component component, long timeDifference){
+                this.component = component;
+                this.timeDifference = timeDifference;
+                this.shouldRun = true;
+        }
+
+        public void run(){
+                System.out.println("Timer started...");
+                try{
+                        while(shouldRun){
+                                component.repaint();
+                                Thread.sleep(timeDifference);
+                        }
+                }catch(InterruptedException ie){
+                        System.out.println("Timer Thread interrupted");
+                }
+                System.out.println("Timer completed...");
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch03;
+
+public class Account {
+        private float total = 1000;
+        private BusyFlag flag = new BusyFlag();
+
+        public boolean deduct(float t) {
+                System.out.println(Thread.currentThread().getName()+" [enter] ");
+                boolean succeed = false;
+                flag.getBusyFlag();
+                if (t <= total) {
+                        total -= t;
+                        succeed = true;
+                }
+                flag.freeBusyFlag();
+                System.out.println(Thread.currentThread().getName()+" : "+total);
+                System.out.println(Thread.currentThread().getName()+" [exit] ");
+                return succeed;
+        }
+
+}
+----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch03;
+
+public class AccountOperation implements Runnable{
+        private Account account;
+        private float amount;
+
+        public AccountOperation(Account account, float amount){
+                this.account = account;
+                this.amount = amount;
+        }
+
+        public void run(){
+                System.out.println(Thread.currentThread().getName()+" : "+(account.deduct(amount) ? "Transaction success.":"Transaction Failure"));
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch03;
+
+public class AccountTest {
+
+        public static void main(String... args) {
+                Account account = new Account();
+                Thread t1 = new Thread(new AccountOperation(account, 200),  "Murali");
+                Thread t2 = new Thread(new AccountOperation(account, 1000), "RamaRao");
+                Thread t3 = new Thread(new AccountOperation(account, 1000), "Balu");
+                t1.start();
+                t2.start();
+                t3.start();
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch03;
+
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.net.Socket;
+
+public class AsynchSocketRead extends Thread {
+
+        private Socket socket;
+        private StringBuilder result;
+
+        public AsynchSocketRead(Socket socket){
+                this.socket = socket;
+                result = new StringBuilder();
+        }
+
+        public void run(){
+                DataInputStream is = null;
+                try{
+                        is = new DataInputStream(socket.getInputStream());
+                }catch(Exception e){
+
+                }
+
+                while(true){
+                        try {
+                                char ch = is.readChar();
+                                appendResult(ch);
+                        } catch (IOException e) {
+                                e.printStackTrace();
+                        }
+                }
+        }
+
+        public synchronized void appendResult(char ch){
+                result.append(ch);
+        }
+
+        public synchronized String getResult(){
+                String res = result.toString();
+                result = new StringBuilder();
+                return res;
+        }
+
+
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch03;
+
+public class BusyFlag_1 {
+
+        private Thread busyFlag = null;
+
+        public  void getBusyFlag(){
+                System.out.println("getBusyFlag :"+Thread.currentThread().getName()+" [enter] ");
+                while(!tryGetBusyFlag()){
+
+                        try{
+                                Thread.sleep(100);
+                        }catch(InterruptedException ie){
+
+                        }
+                        //System.out.println("loop :"+Thread.currentThread().getName());
+                }
+                System.out.println("getBusyFlag :"+Thread.currentThread().getName()+" [exit] ");
+        }
+
+        public synchronized boolean tryGetBusyFlag(){
+                if(busyFlag == null){
+                        busyFlag = Thread.currentThread();
+                        return true;
+                }
+                return false;
+        }
+
+        public synchronized void freeBusyFlag(){
+                System.out.println("freeBusyFlag :"+Thread.currentThread().getName()+" [enter] ");
+                if(busyFlag == Thread.currentThread()){
+                        busyFlag = null;
+                }
+                System.out.println("freeBusyFlag :"+Thread.currentThread().getName()+" [exit] ");
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch03;
+
+public class BusyFlag {
+
+        protected Thread busyFlag = null;
+        protected int busyCount = 0;
+
+        public void getBusyFlag(){
+                while(!tryGetBusyFlag()){
+                        try{
+                                Thread.sleep(100);
+                        }catch(InterruptedException ie){
+
+                        }
+                }
+        }
+
+        public synchronized boolean tryGetBusyFlag(){
+                if(busyFlag == null){
+                        busyFlag = Thread.currentThread();
+                        busyCount = 1;
+                        return true;
+                }
+
+                if(busyFlag == Thread.currentThread()){
+                        busyCount++;
+                        return true;
+                }
+                return false;
+        }
+
+        public synchronized void freeBusyFlag(){
+                if(getBusyFlagOwner() == Thread.currentThread()){
+                        busyCount--;
+                        if(busyCount == 0){
+                                busyFlag = null;
+                        }
+                }
+        }
+
+        public synchronized Thread getBusyFlagOwner(){
+                return busyFlag;
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch03;
+
+import java.io.IOException;
+import java.net.Socket;
+import java.net.UnknownHostException;
+
+public class TestRead extends Thread{
+
+        AsynchSocketRead sr;
+
+        public static void main(String...args) throws UnknownHostException, IOException{
+            Socket socket = new Socket("localhost", 8080);
+                AsynchSocketRead asr = new AsynchSocketRead(socket);
+                asr.start();
+                new TestRead(asr).start();
+        }
+
+        public TestRead(AsynchSocketRead asr){
+                super("ReaderThread");
+                sr = asr;
+        }
+
+        public void run(){
+                System.out.println("Data :"+sr.getResult());
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch03.sync;
+
+public class CustomThread extends Thread {
+        Shared s;
+
+        public CustomThread(Shared s, String str) {
+                super(str);
+                this.s = s;
+                start();
+        }
+
+        public void run() {
+                Shared.show(Thread.currentThread().getName(), 10);
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch03.sync;
+
+public class CustomThread1 extends Thread {
+        Shared s;
+
+        public CustomThread1(Shared s, String str) {
+                super(str);
+                this.s = s;
+                start();
+        }
+
+        public void run() {
+                s.show1(Thread.currentThread().getName(), 20);
+        }
+}
+
+----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch03.sync;
+
+public class RunSync {
+        public static void main(String[] args) {
+                Shared sh = new Shared();
+                CustomThread t1 = new CustomThread(sh, "one");
+                CustomThread1 t2 = new CustomThread1(sh, "two");
+        }
+}
+
+-----------------------------------------------------------------------
+package com.thread.examples.threadprogramming.ch03.sync;
+
+
+/*In java there are two types of locks:
+    1.Class Level
+    2.Object Level
+
+    In case of Static methods the lock is always checked on class
+ but in case of instance methods the lock is always checked on object.
+
+    **Example:**
+    //show1() is non static and show() is static.
+    //now show() is called by class name(or by object) and show1() is called by object then both methods can accessed simultaneously by two threads
+
+*/
+class Shared {
+        private static int x;
+
+        public static synchronized void show(String s, int a) {
+                x = a;
+                System.out.println("Starting in method " + s + " " + x);
+                try {
+                        Thread.sleep(2000);
+                } catch (Exception e) {
+                }
+                System.out.println("Ending from method " + s + " " + x);
+        }
+
+        public static synchronized void show1(String s, int a) {
+                x = a;
+                System.out.println("Starting in method " + s + " " + x);
+                try {
+                        Thread.sleep(2000);
+                } catch (Exception e) {
+                }
+                System.out.println("Ending from method " + s + " " + x);
+        }
+}
+
+----------------------------------------------------------------------
+
+
+----------------------------------------------------------------------
+
+
+

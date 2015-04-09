@@ -1,0 +1,27 @@
+1. What are the conceptual differences between the Collections API and the new Streams API
+
+
+Both the existing Java notion of collections and the new notion of streams provide interfaces to data structures
+representing a sequenced set of values of the element type.
+
+Sequenced, we mean that we commonly step through the values in turn rather than randomly accessing them in any order.
+
+In coarsest terms, the difference between collections and streams has to do with WHEN things are computed.
+
+-> A collection is an in-memory data structure that holds all the values the data structure currently has-
+   EVERY ELEMENT IN THE COLLECTION HAS TO BE COMPUTEd BEFORE IT CAN BE ADDED TO THE COLLECTION.
+-> You can add things to, and remove them from, the collection, but at each moment in time, every
+   element in the collection is stored in memory; elements have to be computed before becoming part of the collection.
+
+-> By contrast, a stream is a conceptually fixed data structure - we can't add or remove elements from it - 
+   WHOSE ELEMENTS ARE COMPUTED ON DEMAND ( NOT BEFORE AS IN COLLECTIONS - so WHEN things are computed is important point).
+-> This gives rise to significant programming benefits.
+
+Another view is that stream is like a lazily constructed collection: values are computed whey they're solicited by a consumer
+(in management speak this is demand-driven, or even just-in-time, manufacturing )
+
+In contrast, a collection is eagerly constructed ( supplier - driven: fill your warehouse before you start selling, like a Christmas novelty that has
+a limited life). Applying this to the primes example, attempting to construct a collection of all prime numbers would result
+in a program loop that forever computes a new prime, adding it to the collection, but of course could never
+finish making the collection, so the consumer would never get to see it.
+

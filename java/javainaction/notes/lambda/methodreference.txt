@@ -1,0 +1,50 @@
+-> Method references can be seen as shorthand for lambdas calling only a specific method.
+-> The basic idea is that if a lambda represents "call this method directly", it's best to refer to the method by name rather than by
+   a description of how to call it.
+-> Indeed, a method reference lets you create a lambda expression from an existing method implementation
+-> Readability
+
+1. method reference to a static method
+2. method reference to an instance method.
+3. method reference to an instance method of an existing object
+
+
+Constructor refernces
+
+-> ClassName::new
+
+Function<Integer, Apple> appleFunction = Apple::new; //Constructor reference 
+Apple apple = appleFunction.apply(10);
+
+BiFunction<String, Integer, Apple> appleCreatorWithTwoParams = Apple::new;
+Apple apple = appleCreatorWithTwoParams.apply("green", 10);
+
+We can also create TriFunction and apply the params to create Apple
+
+The capability of referring to a constructor without instantiating it enables interesting applications.
+
+For example, we can use a Map to associate constructors with a string value
+
+static Map<String, Function<Integer,Fruit>> fruits = new HashMap<>();
+static{
+	fruits.put("apple", Apple::new)
+	fruits.put("orange", Orange::new)
+}
+
+We can then create a method giveMeFruit that, given a String and an Integer, can create different types of fruites with different
+weights
+
+public static Fruit giveMeFurit(String fruit, Integer weight){
+	return fruits.get(fruid.toLowerCase(), apply(weight));
+}
+
+What would you need to do in order to use a constructor reference for a
+three-argument constructor such as Color(int, int, int)?
+
+TriFunction<Integer, Integer, Integer, Color> colorCreator = Color::new;
+Color color = colorCreator.apply(1,2,3);
+
+@FunctionalInterface
+inteface TriFunction<T, U, V, R>{
+	R apply(T t, U u, V v );
+}

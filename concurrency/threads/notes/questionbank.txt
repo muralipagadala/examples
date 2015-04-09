@@ -1,0 +1,7 @@
+1. Will thread resumes its execution immediately after woke up from sleep?
+   Analysis pending : I don't think so. If the CPU is idle then thread may instantly get a chance to execute.
+   
+2. When a thread is waiting for another thread to acquire a lock, for example other thread is in synchronized block, does
+   this thread is blocked. How will this thread know that locks available for acquire. Who will notify the thread.
+
+   

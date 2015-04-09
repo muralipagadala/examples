@@ -1,0 +1,35 @@
+Synchronized
+============
+
+----------------
+
+- Two threads can enter into the same method. Each thread has its own copy of local variables.
+- When a thread encounters a synchronized instance method, it blocks until it can get exclusive access to the object-level mutex lock. 
+  Mutex is short for mutual exclusion. A mutex lock can be held by only one thread at a time. 
+  Other threads waiting for the lock will block until it is released. When the lock is released, 
+  all the threads waiting for it compete for exclusive access. 
+  Only one will be successful, and the other threads will go back into a blocked state waiting for the lock to be released again.
+- If one synchronized method on an object invokes another synchronized method on that same object, 
+  it will not block trying to get the object-level lock because it already has exclusive access to the lock.
+- Every instance of a class has its own object-level lock
+- It’s an unavoidable fact that the object must be in an inconsistent state for a brief period of time, even with everything except the assignments taken out:  
+ 	* public synchronized void setNames(String firstName, String lastName) {  
+      	fname = firstName;  
+      	lname = lastName;  
+  	} 
+ 
+ Very Important
+ ---------------
+ 
+  No matter how fast the processor is, it’s possible that the thread scheduler could swap out the thread making the changes after it has changed fname but before it has changed lname. 
+  Holding an object-level lock does not prevent a thread from being swapped out. 
+  And if it is swapped out, it continues to hold the object-level lock. 
+  Because of this, care must be taken to ensure that all reads are blocked when the data is in an inconsistent state. 
+  
+  TIP
+  ----
+  
+  Tip  If two or more threads might be simultaneously interacting with the member variables of an object, and at least one of those threads might change the values, 
+  it is generally a good idea to use synchronized to control concurrent access. If only one thread will be accessing an object, using synchronized is unnecessary and slows execution. 
+ 
+ 

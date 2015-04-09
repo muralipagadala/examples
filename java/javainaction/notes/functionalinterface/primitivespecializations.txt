@@ -1,0 +1,17 @@
+Boxing, Unboxing, and Autoboxing
+
+List<Integer> list = new ArrayList<>();
+for (int i = 300; i < 400; i++){
+	list.add(i);
+}
+
+But this comes with a performance cost. Boxed values are essentially a wrapper around
+primitive types and are stored on the heap. Therefore, boxed values use more memory and
+require additional memory lookups to fetch the wrapped primitive value.
+
+Java 8 brings a specialized version of the functional interfaces we described earlier in order to
+avoid autoboxing operations when the inputs or outputs are primitives.
+
+For example, in the following code, 
+using an IntPredicate avoids a boxing operation of the value 1000, 
+whereas using a Predicate<Integer> would box the argument 1000 to an Integer object:

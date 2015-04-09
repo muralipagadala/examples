@@ -1,0 +1,6 @@
+Generics : my study notes.
+==========================
+=> Generics enable TYPES ( Classes and Interfaces ) to be parameterized when defining classes, interface, and methods.
+=> Much like more familiar formal parameters used in method declarations.
+=> Type parameters provide a way for you to reuse the source code with different input.
+

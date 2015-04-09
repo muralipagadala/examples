@@ -1,0 +1,156 @@
+Features
+
+1. Closures and I/O Additions
+2. Collection Literals and Simplified Property Access
+3. Property access to List
+4. Spread Operator
+5. XML Handling : GPATH with Dynamic properties
+6. String interpolatin with GString
+7. Simpler for loops
+8. Optional Typing, Optional Statement Terminator, and Parenthesis
+
+
+* Groovy brings the power of advanced language features such as closures, dynamic methods, and the Meta Object Protocol (MOP) to the Java platform.
+* We don't need to write setter/getter methods. If we have to change the type, its only one line of change rather than 7 lines.
+* Groovy support Uniform Access Principle
+* Every script in Groovy (a command-line parameter or a standalone script file) is compiled on
+  the fly into a class that extends the groovy.lang.Script class
+* GroovyShell
+* GroovyConsole
+* Groovy
+* groovyc
+* Groovy currently doesn’t support multiple initialization and iteration statements in the classic for(init1,init2;test;inc1,inc2) loop.
+* A Groovy script is fully constructed—that is, parsed, compiled, and generated—before execution.
+
+Regex Patterns:
+
+The regex find operator =~
+The regex match operator ==~
+The regex pattern operator ~string
+
+Closures :
+
+var complicated = function (x) {
+    var c, f;
+    c = 1; // constant
+    f = function (y) {
+        // We can refer to c in here!
+        return y * 3 + c;
+    };
+    return f(f(x));
+};
+var y = complicated(2);
+// y is still 22 here
+
+That was actually the first example of a closure! The outer function closes over the inner functions, 
+and the inner functions can use variables from the outer function.
+
+A closure is a function plus enclosing environment. 
+In JavaScript when you're passing around function values, you're passing around closures!
+
+Groovy Closures :
+
+1. Groovy Closure is like a code block or method pointer.
+2. Groovy Closure is a peice of code that is defined and executed at later point.
+3. Groovy Closures has some special properties.
+	Implicit Variables.
+	Support for Currying
+	Support for Free Variables
+4. Closures are reusable code blocks in Groovy.
+5. The code of the closure is executed against the delegate of the Closure.
+6. By default the owner of the closure is the same as the delegate, but we can change this
+7. A Closure in groovy is anonymous chunk of code that may take arguments, return a value, and reference and
+   use variables declared in in its surrounding space.
+8. Closures can contain multiple statements and can therefore be as complex as you can make.
+
+ Closure syntax
+
+ { [closureArguments -> } statements }
+
+ The optional closureArguments
+
+ this : refers to the instance of the class that the closure was defined in.
+ owner: is the same as this, unless the closure was defined inside another closure in which case the owner refers to the outer closure.
+ delegate: is the same as owner. But, it is the only one that can be programmatically changed, and it is the one that makes Groovy closures really powerful.
+
+What is a Closure
+	Groovy Closure is a peice of code that is defined and executed at later point.
+	All closures are subtype of groovy.lang.Closure.
+	For each Closure that is declared in our code, groovy generates a Closure class which is subclass of groovy.lang.Closure
+
+Closures and Collection methods
+	"each" is method on Object class
+	"each" method takes a closure as parameter
+	With closures, the block of code defined in the curly braces is not executed until the call() method of the closure is made.
+
+Closures as method parameters
+	Passing closure to the built in collection methods.
+	Closure can accept multiple parameters.
+	If we pass more parameters than the closure expects, then the extra parameters are simply ignored.
+
+Curried Closures
+	We can curry a closure by pre packing one or more of its parameters.
+	The curry method returns a new instance of Closure except with one or more of its parameters set.
+	We can curry multiple parameters in one go. Parameters will always be curried in their order of declaration
+	We can curry on curried closures.
+	Curried closures can be used very effectively in circumstances where contextual data needs to be gathered on the fly and then acted upon.
+
+Closure return 
+	Closure declarations syntax provides no means of defining a return value.
+	Every closure does, however, return a value with each invocation. A closure can have explicit return statements.
+	If no return statement is encountered, then the value returned by the closure is the result of evaluating the last statement 
+	encountered in the closure block. If the last statement has no value, the closure will return null.
+
+Closure Scope 
+	Closures have access to variables in their surrounding scope.
+	These can be local variables or parameters passed to a method inside which the closure is defined.
+	If the closure is defined within a class method, then the object instance fields are also available to the closure.
+	The closure simply inherits all of the visible variables and fields from the surrounding scope in which it is defined.
+	The closure can update any of these fields or variables, and the class or local method scope will see these changes.
+	Likewise, any changes that occur in the class or method scope will also be seen by the closure.
+	At the time that a closure is defined, Groovy binds all of the variables that it accesses to the closure object.
+	
+	When this happens, Groovy converts any stack-based variables such as method parameters and local variables into heap-based duplicates 
+	of these objects. The values of these objects are now bound to the individual closure because the original 
+	values were lost once the method returned
+
+	Groovy has three implicit variables in scope inside each closure.
+
+Calling Closures
+	
+Closures are the real "power" feature of Groovy and they form the basis of most of the DSLs
+
+honestly, Java is very verbose with respect to object instantiation, initialization and setting properties.
+
+Dynamic Programming with Groovy -2 
+----------------------------------
+If the closure is the last argument to a method call, we can attach the closure to the method call. 
+The code block, in this case, appears like a parasite to the method call.
+Unlike Java code blocks, Groovy closures can’t stand alone; they’re either attached to a method or assigned to a variable.
+Closures provide a simple and easy way for a function to delegate part of its implementation logic.
+A closure is a function with variables bound to a context or environment in which it executes.
+Closures augment, refine, or enhance another piece of code. For example, a closure may be useful to express a predicate or condition that will refine the
+selection of objects.
+Closures are very helpful in two specific areas.
+	Manage resource cleanup
+	Create internal domain-specific languages (DSLs)
+We should keep closures small and cohesive. These are intended to be small chunks of code, only a few lines, that are attached to method calls.
+
+#################################################################################
+#                     Groovy Features						#
+#################################################################################
+
+NamedParameters
+OptionalParameters
+MultipleAssignments
+
+Groovy does not force us to implement all the methods in an interface; we can define only the methods we care about and leave out the rest. If the
+methods left out are never called, then we didn’t waste any effort implementing them. This technique is quite useful when implementing interfaces to mock
+up some behavior during unit testing.
+
+Implementing Interfaces
+
+Groovy Boolean Evaluation
+	Groovy boolean evalution is different than Java.
+	Java insists that we provide a boolean expression for the condition part of the if statement.
+	Groovy is not that picky. It tries to infer, so we need to know what Groovy is thinking.

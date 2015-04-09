@@ -1,0 +1,2 @@
+* Groovy brings the power of advanced language features such as closures, dynamic methods, and the Meta Object Protocol (MOP) to the Java platform.
+* We can declare private property and can be accessed by Unique way.

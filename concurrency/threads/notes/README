@@ -1,0 +1,66 @@
+Introduction : 
+
+documentPublisherJob reads the files from Mongodb, process the files in processor and finally upload the files
+to onbase using resttemplate. Uploading implementation is done in DocumentWriter using RestTemplate.
+
+Except the Document Reader which is an implementation of org.springframework.batch.item.data.MongoItemReader all the other
+artifacts are empty.
+
+
+All the batches should include "context.xml" which contains dependent spring artifacts. And it is common for all the batches.
+context.xml includes two other entries, dao.xml and resource.xml.
+dao.xml should contain only MongoDB related configuration ( should be renamed to repository.xml)
+resource.xml should contain batch infrastructure configuration such as job meta data store configuration ( either in memory i.e Map or Persistent store ),
+Job launcher, task executer, Parent batch etc.
+
+1. Build the batch using "mvn clean install"
+
+2. Test the batch :
+
+2a. Development phase :
+
+	Run the DocumentPublisherJob.java to execute the batch.
+	Note : if you encounter any issue related to Class versions then remove this jar from Eclipse classpath
+	 spring-asm-3.1.4.RELEASE ( it needs to fixed in pom.xml which is pending item).
+
+2b. Actual deployment :
+
+	when we build the batch project, it generates deployable artifacts in target folder such as MasheryBatch<version>.tar
+	file. This tar file contains MasheryBatch.jar, lib directory which contains all the dependent libraries
+	
+
+	Deployment process :
+
+	Step 1 : Extract the tar file contents into any folder where you want to run the batch.
+	Step 2 : create "conf" folder and place all the properties files such as batch.properties, log4j.properties.
+	Step 3 : run the following command in MasheryBatch folder.
+
+	java -jar MasheryBatch.jar  spring/batch/document/documentPublisherBatch.xml documentPublisherJob
+
+  
+	Here is the structure of deployment :
+
+	../
+		MasheryBatch ( or any name )
+    		.conf
+        		.batch.properties
+          		.log4j.properties
+			.lib
+				.all the dependent jar files
+			.MasheryBatch.jar
+		
+
+Note : if you encounter any issue related to Class versions then remove this jar from lib spring-asm-3.1.4.RELEASE 
+		( it needs to fixed in pom.xml which is pending item).
+
+How it works :
+
+java -jar MasheryBatch.jar  spring/batch/document/documentPublisherBatch.xml documentPublisherJob
+
+The above command will execute the following Main class which is in MasheryBatch.jar by passing batch configuration and job name as parameters.
+com.tp.mashery.batch.core.ContextCommandLineJobRunner
+This class will start the Spring application container which will start the batch.
+
+http://xpadro.blogspot.com/2013/11/how-error-handling-works-in-spring.html
+
+

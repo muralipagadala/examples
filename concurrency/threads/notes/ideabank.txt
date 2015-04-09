@@ -1,0 +1,16 @@
+-> create  program to take the input and process it. This program must be able to process multiple request at the same time. It should take the input
+and spawn a thread to process the Task and main thread should be available to take the input and process new thread. 
+
+Then put a constraint to limit to 5 thread. If there are no threads available wait for the threads to complete before spawing a new one.
+
+--> Can you create a program to take the typed input and save it in a different thread
+
+--> I am thinking like thread create means allocate memory, resource like thread's own stack, local memory, program counter, stack pointer.
+    And once the thread is created, it could be waiting for a chance to be executed by CPU. Here is the confusion all the texts says thread executes the code
+    is it correct? How can thread executes the code. Only CPU executes any thing. Probably, thread is pointer like ThreadId for the CPU to start execution.
+    
+ --> I guess application code is different from thread code. Which work to be done and should be in the Runnable. Thread is an engine to process/execute the
+     Runnables which is work to be done. In Java, Thread is handler which provides useful handles/interface to interact with engine. We cannot include actual
+     work in the engine itself.
+     
+ --> When we call Thread.stop(), does thread stop it self or CPU stops executing the thread?

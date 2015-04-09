@@ -1,0 +1,22 @@
+If you process a collection, you may want to write a method that
+	-> Can do "something" for every element of the list
+	-> Can do "something else" when you finish processing the list
+	-> Can do "yet something else" if you encounter an error
+This what behavior parameterization refers to.
+
+Here’s an analogy: your room mate knows how to drive to the supermarket and back home. 
+So you can tell him to buy a list of things such as bread, cheese, and wine. 
+This is equivalent to calling a method goAndBuy with a list of products as argument.
+
+But one day you’re at the office and you need him to do something he’s never done 
+before: pick up a package from the post office. You now need to pass him a list of 
+instructions: 
+	go to the post office, 
+	use this reference number, 
+	talk to the manager, 
+	and pick up the parcel.
+
+You could pass him the list of instructions by email, and when he receives it, he can go ahead and follow the instructions.
+
+You’ve now done something a bit more advanced that’s equivalent to a method: 
+go, which can take different new behaviors as arguments and execute them.

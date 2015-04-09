@@ -1,0 +1,54 @@
+apply plugin: 'groovy'
+apply plugin: 'eclipse'
+apply plugin: 'application'
+
+group='com.murali.groovy'
+version='1.0-SNAPSHOT'
+
+description = """A bootstrap Groovy project with gradle, TestNG, Mockito for Eclipse."""
+
+
+mainClassName = "com.murali.basics.hello.HelloGroovy"
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+	ivy
+}
+
+
+/*dependencies {
+  compile(
+    ['org.codehaus.groovy:groovy-all:2.3.0'],
+	['org.apache.ivy:ivy:2.3.0']
+  )
+
+  testCompile(
+    ['org.testng:testng:6.8.8']
+  )
+}*/
+
+dependencies {
+	ivy "org.apache.ivy:ivy:2.3.0"
+	compile "org.codehaus.groovy:groovy-all:2.3.0"
+	testCompile 'org.testng:testng:6.8.8'
+}
+
+jar {
+	baseName="groovy-basics"
+	manifest {
+		attributes 'Implementation-Title': 'Groovy Basics',
+			   'Implementation-Version': version
+	}
+}
+
+tasks.withType(GroovyCompile) {
+	groovyClasspath += configurations.ivy
+}
+
+task runScript (dependsOn: 'classes', type: JavaExec) {
+	main = 'Range'
+	classpath = sourceSets.main.runtimeClasspath
+}

@@ -1,0 +1,42 @@
+Assume we have a list of Apples 
+
+private static List<Apple> inventory = Arrays.asList(new Apple(1, 80, "green"),
+                     new Apple(2, 155, "green"), new Apple(3, 120, "red"));
+
+And we want to sort them
+Here is how we do it in Java 6
+
+Comparator<Apple> appleComparator = new Comparator<Apple>(){
+@Override
+       public int compare(Apple a1, Apple a2) {
+              return a1.getWeight().compareTo(a2.getWeight());
+       }
+};
+              
+Collections.sort(inventory, appleComparator);
+
+We can also write above as 
+
+       Collections.sort(inventory,  new Comparator<Apple>(){
+                     @Override
+                     public int compare(Apple a1, Apple a2) {
+                           return a1.getWeight().compareTo(a2.getWeight());
+                     }
+              });
+
+
+Here is how we do it in Java 8
+
+inventory.sort((Apple a1, Apple a2) -> a1.getWeight().compareTo(a2.getWeight()));
+
+Java 8, List has the ‘sort’ method. And this method takes Comparator. Instead of creating the verbose Comparator like ‘appleCompartor’
+We can use lambda expressions “((Apple a1, Apple a2) -> a1.getWeight().compareTo(a2.getWeight()));
+
+Saves the time
+Less Verbose
+Close to problem statement like “ sort inventory of apples based on their weight”
+Concise.
+
+Hope this helps.
+
+------------------------------------------------------------------------------------------------------------------------------------------------

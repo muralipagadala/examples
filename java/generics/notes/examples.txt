@@ -1,0 +1,2034 @@
+
+package com.generics.examples.comparable;
+
+public class Apple extends Fruit{
+
+        public Apple(int size){
+                super("Apple", size);
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.comparable;
+
+public abstract class Fruit implements Comparable<Fruit>{
+        private String name;
+        private int size;
+
+        public Fruit(String name, int size){
+                this.name = name;
+                this.size = size;
+        }
+
+        public boolean equals(Object obj){
+                if(obj instanceof Fruit){
+                        Fruit that = (Fruit)obj;
+                        return (this.name.equals(that.name) && this.size == that.size);
+                }
+                return false;
+        }
+
+        public int hashCode(){
+                return (name.hashCode()* 29 + size);
+        }
+
+        public int compareTo(Fruit that){
+                return this.size < that.size ? -1 : this.size == that.size ? 0 : 1;
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.comparable;
+
+public class Orange extends Fruit{
+
+        public Orange(int size){
+                super("Orange", size);
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.declarations;
+
+public class Cell<T> {
+
+        private final int id;
+        private final T value;
+        private static int count = 0;
+
+        public Cell(T value){
+                this.value = value;
+                id = nextId();
+        }
+
+        public T getValue(){
+                return value;
+        }
+
+        public int getId(){
+                return id;
+        }
+
+        private static synchronized int nextId(){
+                return count++;
+        }
+
+        public static int getCount(){
+                return count;
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.declarations;
+
+public class Pair<F, S> {
+
+        private F first;
+        private S second;
+
+        public Pair(F first, S second){
+                this.first = first;
+                this.second = second;
+        }
+
+        public F getFirst(){
+                return first;
+        }
+
+        public S getSecond(){
+                return second;
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.effective;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class LegacyLibrary {
+
+        public static void addItems(List list){
+                list.add(new Integer(1));
+                list.add("two");
+        }
+
+        public static List getItems(){
+                List list = new ArrayList();
+                list.add(new Integer(3));
+                list.add("four");
+                return list;
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.effective.security;
+
+import java.util.ArrayList;
+import java.util.Collection;
+
+public class ArrayListString extends ArrayList<String> implements ListString{
+
+        public ArrayListString(){
+                super();
+        }
+
+        public ArrayListString(Collection<? extends String> c){
+                super(c);
+        }
+
+        public ArrayListString(int capacity){
+                super(capacity);
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.effective.security;
+
+public class AuthenticatedOrder extends Order{
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.effective.security;
+
+import java.util.List;
+
+public class DeviousSupplier implements OrderSupplier {
+
+        public void addOrders(List<AuthenticatedOrder> orders) {
+                Order order = new Order(); //Not Authenticated
+                List raw = orders;
+                raw.add(order);
+        }
+
+}
+
+-----------------------------------------------------------------------
+package com.generics.examples.effective.security;
+
+import java.util.List;
+
+public interface ListString extends List<String>{
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.effective.security;
+
+import java.util.Arrays;
+import java.util.List;
+
+public class ListStringMain {
+
+        public static void main(String...args){
+
+                List<? extends List<?>> lists =
+                                Arrays.asList(
+                                                ListStrings.wrap(Arrays.asList("one", "two")),
+                                                Arrays.asList(3, 4),
+                                                Arrays.asList("five", "six"),
+                                                ListStrings.wrap(Arrays.asList("seven", "eight"))
+                                                );
+
+                ListString[] array = new ListString[2];
+
+                int i = 0;
+
+                for(List<?> list : lists){
+                        if(list instanceof ListString){
+                                array[i++] = (ListString)list;
+                        }
+                }
+                System.out.println(Arrays.toString(array));
+                assert Arrays.toString(array).equals("[one, two] [seven, eight]");
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.effective.security;
+
+import java.util.AbstractList;
+import java.util.AbstractSequentialList;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.RandomAccess;
+
+public class ListStrings {
+
+        public static ListString wrap(final List<String> list){
+
+                class Random extends AbstractList<String> implements ListString, RandomAccess{
+
+                        @Override
+                        public String get(int index) {
+                                return list.get(index);
+                        }
+
+                        @Override
+                        public int size() {
+                                return list.size();
+                        }
+
+                };
+
+                class Sequential extends AbstractSequentialList<String> implements ListString{
+
+                        @Override
+                        public ListIterator<String> listIterator(int index) {
+                                final ListIterator<String> it = list.listIterator(index);
+                                return new ListIterator<String>(){
+
+                                        public boolean hasNext() {
+                                                return false;
+                                        }
+
+                                        public String next() {
+                                                return null;
+                                        }
+
+                                        public boolean hasPrevious() {
+                                                return false;
+                                        }
+
+                                        public String previous() {
+                                                return null;
+                                        }
+
+                                        public int nextIndex() {
+                                                return 0;
+                                        }
+
+                                        public int previousIndex() {
+                                                return 0;
+                                        }
+
+                                        public void remove() {
+
+                                        }
+
+                                        public void set(String e) {
+
+                                        }
+
+                                        public void add(String e) {
+
+                                        }
+
+                                };
+                        }
+
+                        @Override
+                        public int size() {
+                                return list.size();
+                        }
+
+                }
+
+                return list instanceof RandomAccess ? new Random() : new Sequential();
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.effective.security;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class NaiveBroker {
+
+        public void connect(OrderSupplier supplier, OrderProcessor processor){
+                List<AuthenticatedOrder> orders = new ArrayList<AuthenticatedOrder>();
+                supplier.addOrders(orders);
+                processor.processOrders(orders);
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.effective.security;
+
+public class Order {
+        private int id;
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.effective.security;
+
+import java.util.List;
+
+public interface OrderProcessor {
+        public void processOrders(List<? extends Order> orders);
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.effective.security;
+
+import java.util.List;
+
+public interface OrderSupplier {
+
+        public void addOrders(List<AuthenticatedOrder> orders);
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.enums;
+
+public enum Season {
+
+        WINTER,
+        SPRING,
+        SUMMER,
+        FALL
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.erasure;
+
+public class ErasureTest {
+
+        public static void main(String...args){
+                MyNode mn = new MyNode(5);
+                Node n = mn;            // A raw type - compiler throws an unchecked warning
+                //n.setData("Hello");     // Causes a ClassCastException to be thrown.
+                //Integer x = mn.data;
+
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.erasure;
+
+public class MyNode extends Node<Integer> {
+    public MyNode(Integer data) { super(data); }
+
+
+    public void setData(Integer data) {
+        System.out.println("MyNode.setData");
+        super.setData(data);
+    }
+}
+
+
+----------------------------------------------------------------------
+package com.generics.examples.erasure;
+
+public class Node<T> {
+
+    public T data;
+
+    public Node(T data) { this.data = data; }
+
+    public void setData(T data) {
+        System.out.println("Node.setData");
+        this.data = data;
+    }
+}
+
+
+----------------------------------------------------------------------
+package com.generics.examples.erasure.bridge;
+
+import java.util.Arrays;
+import java.util.List;
+
+public class ArrayBuilder {
+
+        public static <T> void addToList(List<T> list, T...elements){
+                for(T element : elements){
+                        list.add(element);
+                }
+        }
+
+        public static void faultyMethod(List<String>... l){
+                Object[] array = l;
+                array[0] = Arrays.asList(42);
+                String s = l[0].get(0);
+        }
+}
+
+-----------------------------------------------------------------------
+package com.generics.examples.erasure.bridge;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+public class HeapPollutionExample {
+
+        public static void main(String[] args) {
+
+                List<String> stringListA = new ArrayList<String>();
+                List<String> stringListB = new ArrayList<String>();
+
+                ArrayBuilder.addToList(stringListA, "Seven", "Eight", "Nine");
+                ArrayBuilder.addToList(stringListA, "Ten", "Eleven", "Twelve");
+
+                List<List<String>> listOfStringLists = new ArrayList<List<String>>();
+                ArrayBuilder.addToList(listOfStringLists, stringListA, stringListB);
+
+                ArrayBuilder.faultyMethod(Arrays.asList("Hello!"),Arrays.asList("World!"));
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.excercises;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+
+/**
+ * Write a generic method to count the number of elements in a collection that have specific property.
+ * @author n73550
+ *
+ */
+public class Excercise_1 {
+
+        public static void main(String...args){
+                List<User> userList = Arrays.<User>asList(new User("Murali"), new User("Pagadala"));
+                List<Customer> customerList = Arrays.<Customer>asList(new Customer(1), new Customer(2));
+
+                List<Object> finalList = new ArrayList<Object>();
+                finalList.addAll(userList);
+                finalList.addAll(customerList);
+
+                assert count(finalList, "name") == 3;
+        }
+
+        public static <T> int count(Collection<? extends T> coll, String property){
+                System.out.println(" count [enter] ");
+                int count = 0;
+                try {
+
+                        for(T t : coll){
+                                System.out.println(t.getClass().getName());
+                                Class<?> cls = t.getClass();
+                                if(cls.getDeclaredField(property) != null){
+                                        count++;
+                                }
+                        }
+                }
+                catch (SecurityException e) {}
+                catch (NoSuchFieldException e) {}
+                System.out.println(" count [exit] ");
+                return count;
+        }
+}
+
+class User{
+        private String name;
+
+        public User(String name){
+                this.name = name;
+        }
+
+        public String getName(){
+                return name;
+        }
+}
+
+class Customer{
+        private int id;
+
+        public Customer(int id){
+                this.id = id;
+        }
+
+        public int getId(){
+                return id;
+        }
+}
+
+
+
+----------------------------------------------------------------------
+package com.generics.examples.genericstack;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class ArrayStack<E> implements Stack<E> {
+
+        private List<E> list;
+
+        public ArrayStack(){
+                list = new ArrayList<E>();
+        }
+
+        public E pop() {
+                E element = list.remove(list.size()-1);
+                return element;
+        }
+
+        public void push(E element) {
+                list.add(element);
+        }
+
+        public boolean empty() {
+                return list.size() == 0;
+        }
+
+
+        public String toString(){
+                return "stack"+list.toString();
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.genericstack;
+
+public interface Stack<E> {
+
+        public E pop();
+        public void push(E element);
+        public boolean empty();
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.genericstack;
+
+public class Stacks {
+
+        public static <E> Stack<E> reverse(Stack<E> in){
+                Stack<E> out = new ArrayStack<E>();
+                while(!in.empty()){
+                        out.push(in.pop());
+                }
+                return out;
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.javabeat;
+
+public abstract class Animal {
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.javabeat;
+
+public class AnimalActions <A extends Animal & Sleepable & Runnable & Eatable>{
+        private A animal;
+
+        public AnimalActions(A animal) {
+                this.animal = animal;
+        }
+
+        /**
+         * @return the animal
+         */
+        public A getAnimal() {
+                return animal;
+        }
+
+        /**
+         * @param animal the animal to set
+         */
+        public void setAnimal(A animal) {
+                this.animal = animal;
+        }
+
+        public void doActions(){
+        animal.sleep();
+        animal.run();
+        animal.eat();
+    }
+
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.javabeat;
+
+public class AnimalActionsTest {
+        public static void main(String...args){
+                AnimalActions<Dog> dogActions = new AnimalActions<Dog>(new Dog());
+                dogActions.doActions();
+        }
+}
+----------------------------------------------------------------------
+package com.generics.examples.javabeat;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+public class BoundTypes {
+        public static void main(String[] args){
+                List<? extends Animal> animals = new ArrayList<Animal>();
+                List<Dog> dogs = Arrays.asList(new Dog(), new BadDog(), new GoodDog());
+                List<Cat> cats = Arrays.asList(new Cat(), new Cat());
+                animals = dogs;
+
+                List<? super Animal> animalsList = new ArrayList<Animal>();
+                animalsList.add(new Dog());
+                animalsList.add( new BadDog());
+                animalsList.add( new GoodDog());
+
+        }
+}
+
+class Cat extends Animal{}
+
+class GoodDog extends Dog{}
+class BadDog extends Dog{}
+-----------------------------------------------------------------------
+package com.generics.examples.javabeat;
+
+import java.util.List;
+
+public class ContainerWithElements<C, E> {
+
+        private C outerObject;
+        private List<E> innterObjects;
+
+        public ContainerWithElements(C outerObject,List<E> innterObjects) {
+                this.outerObject = outerObject;
+                this.innterObjects = innterObjects;
+        }
+
+        /**
+         * @return the outerObject
+         */
+        public C getOuterObject() {
+                return outerObject;
+        }
+
+        /**
+         * @param outerObject the outerObject to set
+         */
+        public void setOuterObject(C outerObject) {
+                this.outerObject = outerObject;
+        }
+
+        /**
+         * @return the innterObjects
+         */
+        public List<E> getInnterObjects() {
+                return innterObjects;
+        }
+
+        /**
+         * @param innterObjects the innterObjects to set
+         */
+        public void setInnterObjects(List<E> innterObjects) {
+                this.innterObjects = innterObjects;
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.javabeat;
+
+import java.util.Arrays;
+
+public class ContainerWithElementsClient {
+        public static void main(String[] args){
+                ContainerWithElements<Folder, File> folderWithFiles =
+                                new ContainerWithElements<Folder, File>( new Folder(), Arrays.asList(new File(), new File()));
+
+                ContainerWithElements<Window, Button> windowWithButtons =
+                                new ContainerWithElements<Window, Button>(new Window(), Arrays.asList(new Button(), new Button()));
+        }
+}
+
+class Folder{}
+class File{}
+class Window{}
+class Button{}
+----------------------------------------------------------------------
+package com.generics.examples.javabeat;
+
+public class Dog extends Animal implements Sleepable, Runnable, Eatable{
+
+        public void eat() {
+                System.out.println("Dog is eating");
+        }
+
+        public void run() {
+                System.out.println("Dog is running");
+        }
+
+        public void sleep() {
+                System.out.println("Dog is sleeping");
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.javabeat;
+
+public interface Eatable {
+        public void eat();
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.javabeat;
+
+public class GenericMethods {
+        public <T> void printType(T type){
+                System.out.println(type.getClass().getName());
+        }
+        public static void main(String...args){
+                new GenericMethods().printType(String.class);
+                new GenericMethods().printType(new String("Murali"));
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.javabeat;
+
+public class ObjectHolder<O> {
+
+        private Object object;
+
+        /**
+         * @return the object
+         */
+        public Object getObject() {
+                return object;
+        }
+
+        /**
+         * @param object the object to set
+         */
+        public void setObject(Object object) {
+                this.object = object;
+        }
+
+        /* (non-Javadoc)
+         * @see java.lang.Object#toString()
+         */
+        @Override
+        public String toString() {
+                return "ObjectHolder [object=" + object.toString() + "]";
+        }
+
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.javabeat;
+
+import static java.lang.System.out;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+
+public class ObjectHolderClient {
+        public static void main(String...args) throws MalformedURLException{
+                ObjectHolder<String> stringHolder = new ObjectHolder<String>();
+                stringHolder.setObject("Murali Pagadala");
+                out.println(stringHolder);
+
+                ObjectHolder<URL> urlHolder = new ObjectHolder<URL>();
+                urlHolder.setObject(new URL("http://www.google.com"));
+                out.println(urlHolder);
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.javabeat;
+
+public interface Runnable {
+        public void run();
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.javabeat;
+
+public interface Sleepable {
+        public void sleep();
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.legacy;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class ArrayStack implements Stack{
+
+        private List list;
+
+        public ArrayStack(){
+                list = new ArrayList();
+        }
+
+        public void push(Object element){
+                list.add(element);
+        }
+
+        public Object pop(){
+                Object obj = list.remove(list.size()-1);
+                return obj;
+        }
+
+        public boolean empty(){
+                return list.size() == 0;
+        }
+
+        @Override
+        public String toString(){
+                return "stack"+list.toString();
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.legacy;
+
+public interface Stack {
+
+        public boolean empty();
+        public void push(Object element);
+        public Object pop();
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.legacy;
+
+public class Stacks {
+
+        public static Stack reverse(Stack in){
+                Stack out = new ArrayStack();
+                while(!in.empty()){
+                        out.push(in.pop());
+                }
+                return out;
+        }
+}
+
+-----------------------------------------------------------------------
+package com.generics.examples.patterns.visitor.after;
+
+public abstract class Tree<E> {
+
+        public interface Visitor<E, R>{
+                public R leaf(E e);
+                public R branch(R left, R right);
+        }
+
+        public abstract <R> R visit(Visitor<E,R> v);
+
+        public static <T> Tree<T> leaf(final T e){
+                return new Tree<T>(){
+                        public <R> R visit(Visitor<T,R> v){
+                                return v.leaf(e);
+                        }
+                };
+        }
+
+        public static <T> Tree<T> branch(final Tree<T> left, final Tree<T> right){
+
+                return new Tree<T>(){
+                        public <R> R visit(Visitor<T,R> v){
+                                return v.branch(left.visit(v), right.visit(v));
+                        }
+                };
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.patterns.visitor.before;
+
+public abstract class Tree<E> {
+
+        public abstract String toString();
+        public abstract double sum();
+
+        public static <E> Tree<E> lead(final E e){
+                return new Tree<E>(){
+                        public String toString(){
+                                return e.toString();
+                        }
+
+                        public double sum(){
+                                return ( (Number)e).doubleValue();
+                        }
+                };
+        }
+
+        public static <E> Tree<E> branch(final Tree<E> l, final Tree<E> r){
+                return new Tree<E>(){
+                        public String toString(){
+                                return "("+l.toString()+"^"+r.toString()+")";
+                        }
+                        public double sum(){
+                                return ( l.sum() + r.sum() );
+                        }
+                };
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.reflection;
+
+import java.io.PrintStream;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
+
+public class ReflectionDemo {
+
+        private final static PrintStream out = System.out;
+
+        public static void main(String...args)throws ClassNotFoundException{
+                for(String className : args){
+                        Class<?> clazz = Class.forName(className);
+                        printClass(clazz);
+                }
+        }
+
+        private static <T> void printClass(Class<T> cls){
+                out.print("class ");
+                out.print(cls.getName());
+                printTypeParameters(cls.getTypeParameters());
+                out.println();
+                printSuperClass(cls.getGenericSuperclass());
+                printInterfaces(cls.getGenericInterfaces());
+        }
+
+        private static void printInterfaces(Type[] impls){
+                if(impls != null && impls.length > 0){
+                        out.print("implements ");
+                        int i = 0;
+                        for(Type impl : impls){
+                                if(i++ > 0){
+                                        out.print(",");
+                                }
+                                printType(impl);
+                        }
+                        out.println();
+                }
+        }
+
+        private static void printSuperClass(Type sup){
+                if(sup != null && !sup.equals(Object.class)){
+                        out.print(" extends ");
+                        printType(sup);
+                        out.println();
+                }
+        }
+
+        private static void printTypeParameters(TypeVariable<?>[] vars){
+                if( vars != null && vars.length > 0){
+                        out.print("<");
+                        int i = 0;
+                        for(TypeVariable<?> var : vars){
+                                if(i++ > 0){
+                                        out.print(",");
+                                }
+                                out.print(var.getName());
+                                printBounds(var.getBounds());
+                        }
+                        out.print(">");
+                }
+        }
+
+        private static void printBounds(Type[] bounds){
+                if(bounds != null && bounds.length > 0 && !(bounds.length == 1 && bounds[0] == Object.class)){
+                        out.print(" extends ");
+                        int i = 0;
+                        for(Type bound : bounds){
+                                if(i++ > 0){
+                                        out.print("&");
+                                }
+                                printType(bound);
+                        }
+                }
+        }
+
+        private static void printType(Type type){
+                if(type instanceof Class){
+                        Class<?> cls = (Class) type;
+                        out.print(cls.getName());
+                }else if( type instanceof ParameterizedType){
+                        ParameterizedType p = (ParameterizedType) type;
+                        Class cls = (Class)p.getRawType();
+                        Type ownerType = p.getOwnerType();
+
+                        if(ownerType != null){
+                                printType(ownerType);
+                                out.print(".");
+                        }
+                        out.print(cls.getName());
+                        printParams(p.getActualTypeArguments());
+                }else if(type instanceof GenericArrayType){
+                        GenericArrayType g = (GenericArrayType) type;
+                        printType(g.getGenericComponentType());
+                        out.print("[]");
+                }else if(type instanceof TypeVariable<?>){
+                        TypeVariable<?> t = (TypeVariable<?>) type;
+                        out.print(t.getName());
+                }else if(type instanceof WildcardType){
+                        WildcardType w = (WildcardType)type;
+                        Type[] upper = w.getUpperBounds();
+                        Type[] lower = w.getLowerBounds();
+                        if( upper.length == 1 && lower.length == 0){
+                                out.print("? extends ");
+                                printType(upper[0]);
+                        }else if( upper.length == 0 && lower.length == 1){
+                                out.print("? super ");
+                                printType(lower[0]);
+                        }else{
+                                throw new AssertionError();
+                        }
+                }
+        }
+
+        private static void printParams(Type[] types){
+                if(types != null && types.length > 0){
+                        out.print("<");
+                        int i = 0;
+                        for(Type type : types){
+                                if(i++ > 0 ){
+                                        out.print(",");
+                                }
+                                printType(type);
+                        }
+                        out.print(">");
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.reifiable;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+
+import java.lang.reflect.Array;
+
+public class ArrayReifiedTypes {
+
+        /**
+         * This is an error. Because type variable is not reifiable type.
+         * An attempt to compile this code reports a generic array creation error.
+         * @param coll
+         * @return
+         */
+        /*public static <T> T[] toArray(Collection<T> coll){
+                T[] a = new T[coll.size()]; //COMPILE ERROR
+                int i = 0;
+                for(T el : coll){
+                        a[i++] = el;
+                }
+                return a;
+        }*/
+
+        /**
+         *
+         * @param coll
+         * @return
+         */
+        @SuppressWarnings("unchecked")
+        public static <T> T[] toArray_2(Collection<T> coll){
+                T[] a = (T[]) new Object[coll.size()]; //Warning!. cannot be ignored.
+                //Erasure Object[] a = (Object[]) new Object[coll.size()]
+                int i = 0;
+                for(T el : coll){
+                        a[i++] = el;
+                }
+                return a;
+        }
+
+        /**
+         *
+         * @param coll
+         * @param array
+         * @return
+         */
+        public static <T> T[] toArray_3(Collection<T> coll, T[] array){
+                if( coll.size() > array.length){
+                        array = (T[])Array.newInstance(array.getClass().getComponentType(), coll.size());
+                }
+                int i = 0;
+                for(T element : coll){
+                        array[i++] = element;
+                }
+
+                if(i < array.length){
+                        array[i] = null;
+                }
+                return array;
+        }
+
+        /**
+         *
+         * @param coll
+         * @param k
+         * @return
+         */
+        public static <T> T[] toArray(Collection<T> coll, Class<T> k){
+                T[] array = (T[])Array.newInstance(k, coll.size());
+                int i = 0;
+                for(T element : coll){
+                        array[i++] = element;
+                }
+                return array;
+        }
+
+        public static void main(String...args){
+                List<String> strings = Arrays.asList("one", "two");
+                //String[] strArray = toArray(strings); //ClassCastException
+                //Erasure : String[] strArray = (String[])toArray(strings);
+
+                /*String[] strArray = toArray(strings, new String[0]);
+                assert Arrays.toString(strArray).equals("[one, two]");
+
+                String[] b = new String[] {"x", "x", "x", "x"};
+                toArray(strings, b);
+                assert Arrays.toString(b).equals("[one, two, null, x]");*/
+
+                String[] strArray = toArray(strings, String.class);
+                assert Arrays.toString(strArray).equals("[one, two]");
+
+                test();
+                testVarArgsWithArrays();
+        }
+
+
+        //
+
+        public static void test(){
+                List<Integer>[] intLists = (List<Integer>[])new List[]{Arrays.asList(1)};
+                List<? extends Number>[]  numLists = intLists;
+                numLists[0] = Arrays.asList(1.01);
+                //int i = intLists[0].get(0); //ClassCastException
+        }
+
+        public static void testVarArgsWithArrays(){
+                List<Integer> a = Arrays.asList(1,2);
+                List<Integer> b = Arrays.asList(3,4);
+
+                List<List<Integer>> nestedList = Arrays.asList(a,b); //Generic array creation
+                //Erasure List<List<Integer>> nestedList = Arrays.asList( new List<Integer>[]{a, b});
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.reifiable;
+
+import java.util.Arrays;
+import java.util.List;
+
+public class Promote {
+
+        @SuppressWarnings("unchecked")
+        public static List<String> promote(List<Object> objs){
+                for(Object obj : objs){
+                        if(!(obj instanceof String)){
+                                throw new ClassCastException();
+                        }
+                }
+                //First : cast the list of objects into list of wild card types and it is safe.
+                //Second: cast the list of wild card type into list of strings.
+                return (List<String>)(List<?>)objs;
+        }
+
+        /**
+         *
+         * @param args
+         */
+        public static void main(String...args){
+                List<Object> objList = Arrays.<Object>asList("one", "two");
+                List<String> strList = promote(objList);
+                assert (List<?>)objList == (List<?>)strList;
+
+                List<Object> obj2List = Arrays.<Object>asList(1, "one");
+                boolean caught = false;
+                try{
+                        List<String> str2List = promote(obj2List);
+                }catch(ClassCastException ce){
+                        caught = true;
+                }
+                assert caught;
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.subtypes;
+
+import java.util.Arrays;
+import java.util.List;
+
+public class SubstitutionPrinciple {
+
+        public static void main(String...args){
+                /*List<Integer> ints = Arrays.asList(1,2);
+                List<Number> numList = ints;
+                assert numList.toString().equals("[1, 2]");*/
+        }
+}
+
+----------------------------------------------------------------------
+
+package com.generics.examples.typeinference;
+
+import java.io.Serializable;
+import java.util.AbstractList;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
+public class Inference {
+
+        public static void main(String...args){
+                //Serializable s = pick("d", new ArrayList<String>());
+                //List<String> c = pick("d", new ArrayList<String>());
+                //Cloneable c = pick("d", new ArrayList<String>());
+
+                //Iterable<String> c = pick("d", new ArrayList<String>());
+                //Collection<String> c = pick("d", new ArrayList<String>());
+
+                //AbstractList<String> c = pick("d", new ArrayList<String>());
+        }
+
+        public static <T> T pick(T arg1, T arg2){
+                return arg2;
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.wildcard.bounded;
+
+public class BoundedWildCard {
+
+        public static void displayXY(Coordinates<? extends TwoD> co) {
+                System.out.println("Show XY Coordinates");
+                for (int i = 0; i < co.coordinates.length; i++) {
+                        System.out.println(co.coordinates[i].x + " " + co.coordinates[i].y);
+                }
+        }
+
+        public static void displayXYZ(Coordinates<? extends ThreeD> co) {
+                System.out.println("Show XYZ Coordinates");
+                for (int i = 0; i < co.coordinates.length; i++) {
+                        System.out.println(co.coordinates[i].x + " " + co.coordinates[i].y +" "+co.coordinates[i].z);
+                }
+        }
+
+        public static void displayXYZK(Coordinates<? extends FourD> co) {
+                System.out.println("Show XYZK Coordinates");
+                for (int i = 0; i < co.coordinates.length; i++) {
+                        System.out.println(co.coordinates[i].x + " " + co.coordinates[i].y +" "+co.coordinates[i].z+" "+co.coordinates[i].k);
+                }
+        }
+
+        /*public static void display(Coordinates<? super FourD> co){
+                for(int i = 0; i < co.coordinates.length; i++){
+                        System.out.println(co.coordinates[i].x + " " + co.coordinates[i].y +" "+co.coordinates[i].z);
+                }
+        }*/
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.wildcard.bounded;
+
+public class Coordinates<T extends TwoD> {
+
+        T[] coordinates;
+
+        public Coordinates(T[] coordinates){
+                this.coordinates = coordinates;
+        }
+
+}
+
+-----------------------------------------------------------------------
+package com.generics.examples.wildcard.bounded;
+
+public class FourD extends ThreeD{
+
+        public int k;
+
+        public FourD(int x, int y, int z, int k){
+                super(x, y, z);
+                this.k = k;
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.wildcard.bounded;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class LowerBound {
+
+        public static void main(String... args){
+                //List<?> dList = new ArrayList<?>();
+        }
+
+        public static void print(List<? super ThreeD> dimList){
+                printList(dimList);
+        }
+
+        private  static <T> void printList(List<T> list){
+                for(T element : list){
+                        System.out.println(element);
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.wildcard.bounded;
+
+public class ThreeD extends TwoD{
+
+        public int z;
+
+        public ThreeD(int x, int y, int z){
+                super(x, y);
+                this.z = z;
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.wildcard.bounded;
+
+public class TwoD {
+
+        public int x;
+        public int y;
+
+        public TwoD(int x, int y){
+                this.x = x;
+                this.y = y;
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.wildcard.capture;
+
+import java.util.List;
+
+public class WildCardError {
+
+        public void foo(List<?> list){
+                fooHelper(list);
+        }
+
+        public <T> void fooHelper(List<T> list){
+                list.set(0, list.get(0));
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.wildcard.capture;
+
+import java.util.List;
+
+/**
+ * In this example, the code is attempting an unsafe operation.
+ * For example, consider the following invocation of the swapFirst method:
+
+ * List<Integer> li = Arrays.asList(1, 2, 3);
+ * List<Double>  ld = Arrays.asList(10.10, 20.20, 30.30);
+ * swapFirst(li, ld);
+ * While List<Integer> and List<Double> both fulfill the criteria of List<? extends Number>,
+ * it is clearly incorrect to take an item from a list of Integer values and attempt to place it into a list of Double values.
+ * @author N73550
+ *
+ */
+
+public class WildCardErrorBad {
+
+        public void swap(List<? extends Number> l1, List<? extends Number> l2){
+                /*Number temp = l1.get(0);
+                l1.set(0, l2.get(0));
+
+                l2.set(0, temp);*/
+        }
+}
+
+----------------------------------------------------------------------                     TEST --------------------------------------
+
+
+----------------------------------------------------------------------
+package com.generics.examples.basic;
+
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+
+import org.testng.annotations.Test;
+
+public class OrderedPairTest {
+
+        @Test
+        public void testMultipleParamTypes(){
+                Pair<Integer, String> pair_1 = new OrderedPair<Integer, String>(1, "Murali");
+                assertEquals(pair_1.getKey().intValue(), 1, "Key is not present");
+
+                Pair<String, String> pair_2 = new OrderedPair<String, String>("Murali", "Pagadala");
+                assertEquals(pair_2.getKey(), "Murali", "Keys are not similar");
+
+                Pair<Integer, DynamicBox<String>> pair_3 = new OrderedPair<Integer, DynamicBox<String>>(1, new DynamicBox<String>());
+                assertEquals(pair_3.getKey().intValue(), 1, "Key is not present");
+        }
+
+        @Test
+        public void testCompareWithGenericMethod(){
+                Pair<Integer, String> pair_1 = new OrderedPair<Integer, String>(1, "Murali");
+                Pair<Integer, String> pair_2 = new OrderedPair<Integer, String>(1, "Murali");
+
+            //assertTrue(Util.compare(pair_1, pair_2)); //type inference by compiler
+                assertTrue(Util.<Integer, String>compare(pair_1, pair_2));
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.basic;
+
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+
+import org.testng.annotations.Test;
+
+public class RawTypeTest {
+
+        @SuppressWarnings("unchecked")
+        @Test
+        public void testRawType_1(){
+                @SuppressWarnings("rawtypes")
+                DynamicBox box = new DynamicBox();
+                box.put("Murali");
+                assertEquals("Murali", box.get(), "Box elements are not same");
+
+
+        }
+
+        @Test
+        public void testRawType_2(){
+                DynamicBox<String> stringBox = new DynamicBox<String>();
+                DynamicBox rawBox = new DynamicBox();
+                stringBox = rawBox;
+        }
+
+        @Test
+        public void testRawType_3(){
+                DynamicBox<String> stringBox = new DynamicBox<String>();
+                DynamicBox rawBox = new DynamicBox();
+                rawBox = stringBox;
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.basic;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.testng.annotations.Test;
+
+public class UtilTest {
+
+        @Test
+        public void testBoundedTypes_1(){
+                String[] array = {"J", "a", "v", "a"};
+
+                System.out.println("Count :"+Util.<String>countGreaterThan(array, "a"));
+        }
+
+        @Test
+        public void testPrint(){
+                List<Integer> intList = new ArrayList<Integer>();
+                intList.add(1);
+                intList.add(3);
+                intList.add(3);
+
+                Util.print(intList);
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.bounded2;
+
+import static org.testng.Assert.assertTrue;
+
+import java.util.List;
+
+import org.testng.annotations.Test;
+
+import com.generics.examples.bounded2.Lists;
+
+public class BoundedListTest {
+
+        @Test
+        public void testToList_1(){
+                List<Integer> ints = Lists.<Integer>toList(1,2,3);
+                assertTrue( ints.contains(1));
+
+                List<String> strings = Lists.<String>toList("hello", "how");
+                assertTrue( strings.contains("how"));
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.comparable;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Collection;
+
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+
+public class ComparableTest {
+
+        private Apple a1;
+        private Apple a2;
+        private Orange o3;
+        private Orange o4;
+
+        @BeforeClass
+        public void init(){
+                a1 = new Apple(1);
+                a2 = new Apple(2);
+                o3 = new Orange(3);
+                o4 = new Orange(4);
+        }
+
+        @Test
+        public void testFruits_1(){
+                List<Apple> apples = Arrays.<Apple>asList(a1, a2);
+                assert Collections.max(apples).equals(a2);
+
+                List<Orange> oranges = Arrays.<Orange>asList(o3, o4);
+                assert Collections.max(oranges).equals(o4);
+
+                List<Fruit> mixed = Arrays.<Fruit>asList(a1, o3);
+                assert Collections.max(mixed).equals(o3);
+        }
+}
+
+-----------------------------------------------------------------------
+package com.generics.examples.comparators;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Collection;
+
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+
+public class ComparatorTest {
+
+
+        private static Comparator<String> sizeComparator = new Comparator<String>(){
+                public int compare(String s1, String s2){
+                        return
+                                s1.length() < s2.length() ? -1 :
+                                s1.length() > s2.length() ? 1 :
+                                s1.compareTo(s2);
+                }
+        };
+
+        @Test
+        public void testComparator_1(){
+                List<Integer> intList = Arrays.<Integer>asList(1,2,3,4);
+                Integer max = max_2(intList);
+                assertEquals(max.intValue(), 4);
+
+                List<String> strs = Arrays.<String>asList("zero", "one", "two");
+                assertEquals(max_2(strs), "zero");
+        }
+
+        @Test
+        public void testComparator_2(){
+                assert "two".compareTo("three") > 0;
+                assert sizeComparator.compare("two", "three") < 0 ;
+        }
+
+        @Test
+        public void testComparator_3(){
+                List<String> strings = Arrays.<String>asList("from", "aaa", "to", "zzz");
+
+                assert Collections.max(strings).equals("zzz");
+                assert Collections.min(strings).equals("aaa");
+
+                assert Collections.max(strings, sizeComparator).equals("from");
+                assert Collections.min(strings, sizeComparator).equals("to");
+        }
+
+
+        /**
+         *
+         * @param collection
+         * @return
+         */
+        public static <T extends Comparable<T>> T max(Collection<T> collection){
+                T candidate = collection.iterator().next();
+                for(T element : collection){
+                        if(candidate.compareTo(element) < 0 ){
+                                candidate = element;
+                        }
+                }
+                return candidate;
+        }
+
+        /**
+         *
+         * @param coll
+         * @return
+         */
+        public static <T extends Comparable<? super T>> T max_2(Collection<? extends T> coll){
+                T candidate = coll.iterator().next();
+                for(T element : coll){
+                        if(candidate.compareTo(element) < 0 ){
+                                candidate = element;
+                        }
+                }
+                return candidate;
+        }
+
+        /**
+         *
+         * @param coll
+         * @return
+         */
+        public static <T extends Object & Comparable<? super T>> T max_3(Collection<? extends T> coll){
+                T candidate = coll.iterator().next();
+                for(T element : coll){
+                        if(candidate.compareTo(element) < 0 ){
+                                candidate = element;
+                        }
+                }
+                return candidate;
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.declarations;
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Collection;
+
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+
+public class DeclarationsTest {
+
+        @Test
+        public void testHeaderDeclaration(){
+                Pair<String, Integer> pair = new Pair<String, Integer>("one", 1);
+
+                assert pair.getFirst().equals("one") && pair.getSecond().equals(1);
+        }
+
+        @Test
+        public void testStaticDeclaration(){
+                Cell<String> a = new Cell<String>("one");
+                Cell<Integer> b = new Cell<Integer>(2);
+
+                assert a.getId() == 0 && b.getId() == 1 && Cell.getCount() == 2;
+
+                assert Cell.getCount() == 2;
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.effective;
+
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Collection;
+
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+
+public class NaiveClient {
+
+        @Test(expectedExceptions=ClassCastException.class)
+        public void processItems(){
+
+                List<Integer> intList = new ArrayList<Integer>();
+                //There is no warning while passing the list bcz parameterized type List<Integer> is considered as subtype of List.
+                LegacyLibrary.addItems(intList);
+                System.out.println(intList.toString());
+                assert intList.size() == 2;
+
+                int total = 0;
+                for(int i : intList){
+                        total += i;
+                }
+
+                List<Integer> list2 = LegacyLibrary.getItems();
+        }
+
+        @Test(expectedExceptions=ClassCastException.class)
+        public void testCheckedCollection(){
+                List<Integer> intList = new ArrayList<Integer>();
+                List<Integer> view = Collections.checkedList(intList, Integer.class);
+                LegacyLibrary.addItems(view);
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.enums;
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Collection;
+
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+
+
+public class EnumTest {
+
+        @Test
+        public void testEnum_1(){
+
+                //<E extends Enum<E>>
+                //<T extends Comparable<T>>
+                assert Season.WINTER instanceof Enum;
+                assertEquals(Season.WINTER.ordinal(), 0);
+        }
+
+        @Test
+        public void displayBridgeMethods(){
+                for(Method m : Integer.class.getMethods()){
+                        if(m.getName().equals("compareTo")){
+                                System.out.println(m.toGenericString());
+                        }
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.genericstack;
+
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Collection;
+
+import org.testng.annotations.Test;
+
+import com.generics.examples.genericstack.ArrayStack;
+import com.generics.examples.genericstack.Stack;
+
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+
+public class GenericStackTest {
+
+        @Test
+        public void testGenericStack(){
+                Stack<Integer> stack = new ArrayStack<Integer>();
+                for(int i = 0 ; i < 4; i++){
+                        stack.push(i);
+                }
+
+                assert stack.toString().equals("stack[0, 1, 2, 3]");
+                Integer value = stack.pop();
+                assert value == 3;
+                assert stack.toString().equals("stack[0, 1, 2]");
+
+                Stack<Integer> reverse = Stacks.reverse(stack);
+                assert stack.empty();
+
+                assert reverse.toString().equals("stack[2, 1, 0]");
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.legacy;
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Collection;
+
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+
+public class LegacyStackTest {
+
+        @Test
+        public void testLegacyStack(){
+                Stack stack = new ArrayStack();
+                for(int i = 0; i < 4; i++){
+                        stack.push(i);
+                }
+                assert stack.toString().equals("stack[0, 1, 2, 3]");
+
+                Integer val = (Integer)stack.pop();
+                assert val.intValue() == 3;
+                assert stack.toString().equals("stack[0, 1, 2]");
+
+                Stack reverse = Stacks.reverse(stack);
+                assert stack.empty();
+                assert reverse.toString().equals("stack[2, 1, 0]");
+
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.patterns.visitor;
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Collection;
+
+import org.testng.annotations.Test;
+
+import com.generics.examples.patterns.visitor.before.Tree;
+
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+
+public class TreeClient {
+
+        @Test
+        public void testTree(){
+                Tree<Integer> intTree = Tree.branch(
+                                        Tree.branch(Tree.lead(1), Tree.lead(2)),
+                                        Tree.lead(3));
+                System.out.println(intTree.toString());
+                assert intTree.toString().equals("((1^2)^3)");
+        }
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.patterns.visitor;
+
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Collection;
+
+import org.testng.annotations.Test;
+
+import com.generics.examples.patterns.visitor.after.Tree;
+
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+
+public class VisitorTreeClient {
+
+        @Test
+        public void testTree(){
+                Tree<Integer> intTree = Tree.branch(
+                                Tree.branch(Tree.leaf(1), Tree.leaf(2)),
+                                Tree.leaf(3));
+                System.out.println(toString(intTree));
+                assert toString(intTree).equals("((1^2)^3)");
+                assert sum(intTree) == 6;
+        }
+
+        public static <T> String toString(Tree<T> t){
+                return t.visit(new Tree.Visitor<T, String>() {
+                        public String leaf(T e){
+                                return e.toString();
+                        }
+                        public String branch (String l, String r){
+                                return "("+l+"^"+r+")";
+                        }
+
+                });
+        }
+
+        public static <N extends Number> double sum(Tree<N> t){
+                return t.visit(new Tree.Visitor<N, Double>() {
+                        public Double leaf(N e){
+                                return e.doubleValue();
+                        }
+                        public Double branch(Double l, Double r){
+                                return l+r;
+                        }
+                });
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.generics.examples.reflection;
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Collection;
+
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+
+public class ReflectionTest {
+
+        @Test
+        public void testReflection_1(){
+                Class integer = Integer.class;
+                Number num = new Integer(1);
+                Class number = num.getClass();
+                assertEquals(integer.getName(), "java.lang.Integer");
+                assertEquals(number.getName(), "java.lang.Integer");
+                assert integer == number;
+        }
+
+        @Test
+        public void testReflection_2(){
+                Class<Integer> integer = Integer.class; //Class token
+                Number num = new Integer(1);
+                Class<? extends Number> number = num.getClass();
+                assertEquals(integer.getName(), "java.lang.Integer");
+                assertEquals(number.getName(), "java.lang.Integer");
+                assert integer == number;
+        }
+
+        @Test
+        public void testReflection_3(){
+                assertEquals(String.class.getSuperclass().getName(), "java.lang.Object");
+        }
+
+        @Test
+        public void testReflection_4(){
+                List<Integer> ints = new ArrayList<Integer>();
+                List<String> strings = new ArrayList<String>();
+                assert ints.getClass() == ArrayList.class;
+                assert strings.getClass() == ArrayList.class;
+                assert ints.getClass() == strings.getClass();
+        }
+}
+
+-----------------------------------------------------------------------
+package com.generics.examples.wildcard.bounded;
+
+import org.testng.annotations.Test;
+
+public class DimensionTest {
+
+        @Test
+        public void testTwoD(){
+                TwoD td[] = { new TwoD(0, 0), new TwoD(7, 9),new TwoD(18, 4),new TwoD(-1, -23)};
+                Coordinates<TwoD> twod = new Coordinates<TwoD>(td);
+
+                BoundedWildCard.displayXY(twod);
+        }
+
+        @Test
+        public void testThreeD(){
+                FourD fd[] = {new FourD(1, 2, 3, 4),new FourD(6, 8, 14, 8),new FourD(22, 9, 4, 9),new FourD(3, -2, -23, 17)};
+                Coordinates<FourD> fourD = new Coordinates<FourD>(fd);
+                BoundedWildCard.displayXY(fourD);
+        }
+}

@@ -1,0 +1,129 @@
+-----------------------------
+Bare minimum wait()/notify()
+-----------------------------
+
+Step 1 : ThreadA must acquire object level lock before it calls wait() method
+         It can do by using synchronized block.
+Step 2 : ThreadA calls the wait() method
+Step 3 : ThreadA releases the lock and goes to sleep until other thread notifies or interrupts.
+
+-----
+WAIT
+-----
+Object valueLock = new Object();
+try{
+	synchronized(valueLock){
+		valueLock.wait();
+	}
+}catch (InterruptedException ie){
+}
+
+-------
+NOTIFY 
+-------
+Step 1 : ThreadB must acquire object level lock before it calls notify() method.
+Step 2 : ThreadB calls notify() method inside synchronized block or method.
+Step 3 : Thread scheduler will pick up one of the waiting thread and notify it.
+Step 4 : ThreadB releases object level lock so that ThreadA can acquire the lock and proceed further.
+try{
+	synchronized(valueLock){
+		valueLock.notify()
+	}
+}catch (InterruptedException ie){
+}
+
+
+
+---------------------------
+Typical wait()/notify()
+---------------------------
+In most cases, a member variable is checked by the thread doing the waiting and modified by the thread doing the notification. 
+The checking and modification occur inside the synchronized blocks to be sure that no race conditions develop.
+
+Although wait( ) normally waits until notify( ) or notifyAll( ) is called, 
+there is a possibility that in very rare cases the waiting thread could be awakened due to a spurious wakeup. 
+In this case, a waiting thread resumes without notify( ) or notifyAll( ) having been called. 
+(In essence, the thread resumes for no apparent reason.) Because of this remote possibility, Oracle recommends that calls to wait( ) should take place
+within a loop that checks the condition on which the thread is waiting.
+
+Step 1 : ThreadA must acquire object level lock before it calls wait() method
+         It can do by using synchronized block.
+Step 2 : ThreadA calls the wait() method
+Step 3 : ThreadA releases the lock and goes to sleep until other thread notifies or interrupts.
+Step 4 : ThreadA wakes up as notified by other thread and checks whether 'value' is set to true. if 
+         value is true and ThreadA proceeds further and release the lock.
+
+-----
+WAIT
+-----
+Object valueLock = new Object();
+boolean value = false;
+try{
+	synchronized(valueLock){
+		while(value != true){
+			valueLock.wait();
+		}
+	}
+}catch (InterruptedException ie){
+}
+
+--------
+NOTIFY
+--------
+Step 1 : ThreadB must acquire object level lock before it calls notify() method.
+Step 2 : ThreadB sets the value as true.
+Step 3 : ThreadB calls notify() method inside synchronized block or method.
+Step 4 : Thread scheduler will pick up one of the waiting thread and notify it.
+Step 5 : ThreadB releases object level lock so that ThreadA can acquire the lock and proceed further.
+
+try{
+	synchronized(valueLock){
+		value = true
+		valueLock.notify()
+	}
+}catch (InterruptedException ie){
+}
+
+---------------------------------------------
+Wait()/Nofiy() with synchronized methods
+---------------------------------------------
+
+In the previous examples, valueLock was used with the synchronized statement to require that threads get exclusive access to the object-level lock associated with valueLock. 
+Sometimes, the class is designed to synchronize on this instead of another object. In this case, the synchronized method modifier can be used instead of a synchronized statement.
+
+public void synchronized waitUntilNotifyWithTrue()throws InterruptedException{
+	while(value != true){
+		wait()
+	}
+}
+
+public synchronized void  setValue(boolean newValue)throws InterruptedException{
+	if(newValue != value){
+		value = newValue;
+		notify();
+	}
+}
+
+Other points 
+-------------
+->If the proper lock is not held when wait() is called, an IllegalMonitorStateException is thrown. 
+  This exception is a subclass of RuntimeException, so a try-catch construct is not necessary and is rarely used.
+-> wait(), notify(), notifyAll() all are FINAL methods in Java.
+-> only wait() throws InterruptedException
+
+
+Why to use notifyAll() instead of notify()
+---------------------------------------------
+
+Missed Notification
+-------------------
+-> Missed notification occurs when ThreadB notifies ThreadA, but ThreadA is not yet waiting for the notification. 
+-> In a multi-threaded environment like Java, we don't have much control over which thread runs and for how long.
+-> This uncertainty can lead to a situation in which most of the time an application is run, threadA is waiting before threadB does the notification. 
+   But occasionally, threadB does the notification before threadA is waiting. This missed notification scenario can be quite dangerous.
+   
+Early Notification
+-------------------
+-> If a thread is notified while waiting, but the condition the thread is waiting for has not yet been met, the thread has received an early notification.
+-> An early notification can also occur if the condition is briefly met but quickly changes so it’s no longer met. 
+-> This might sound strange, but early notification can happen due to subtle errors in the code (generally when an if is used instead of a while).

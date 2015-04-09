@@ -1,0 +1,13 @@
+https://blogs.oracle.com/java/entry/java_tutorial_updated
+http://www.javacodegeeks.com/java/core-java/
+https://blog.codecentric.de/en/2013/10/java-8-first-steps-lambdas-streams/
+
+http://www.ebookl.com/url?url=http%3A%2F%2Fwww.informit.com%2Fstore%2Fjava-8-lambda-expressions-and-streams-livelessons-video-9780133750614
+http://www.javac.info/closures-v05.html
+
+
+
+Method References :
+
+The Java compiler will take either a lambda expression or a reference to a method where an 
+implementation of a functional interface is expected.

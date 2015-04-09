@@ -1,0 +1,9 @@
+-------------------------------------------------------------------------------------------------------------------------------------------
+USE CASE												EXAMPLE OF LAMBDA									MATCHING FUNCTIONAL INTERFACE
+-------------------------------------------------------------------------------------------------------------------------------------------
+boolean expression										List<String> list -> list.isEmpty()					Predicate<List<T>> predicate
+Creating objects										() -> new Apple(10)									Supplier<Apple>
+Consuming from an object								(Apple apple) -> sysout(apple.getWeight())			Consumer<Apple>
+Select/extract from an object							String s -> s.length()								Function<String, Integer> or ToIntFunction<String>
+Combine two values										(int a, int b) -> a * b								IntBinaryOperator
+Compare two objects										(Apple a1, Apple a2) -> a1.getWeight().com....		Comparator<Apple>										

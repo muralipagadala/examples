@@ -1,0 +1,4 @@
+def file = new File('cities.txt')
+file.append('New Jersy')
+file.append('Hartford')
+println file.text

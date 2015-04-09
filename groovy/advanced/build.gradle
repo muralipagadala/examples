@@ -1,0 +1,57 @@
+apply plugin: 'groovy'
+apply plugin: 'eclipse'
+apply plugin: 'application'
+
+group='com.murali.groovy'
+version='1.0-SNAPSHOT'
+
+description = """A bootstrap Groovy project with gradle, TestNG, Mockito for Eclipse."""
+
+
+mainClassName = "com.murali.groovy.advanced.hello.HelloGroovy"
+
+buildscript {
+	repositories {
+		mavenCentral()
+	}
+}
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+	ivy
+	driver
+}
+
+
+dependencies {
+	ivy "org.apache.ivy:ivy:2.3.0"
+	compile "org.codehaus.groovy:groovy-all:2.3.0"
+	driver 'mysql:mysql-connector-java:5.1.31'
+	testCompile 'junit:junit:4.+'
+}
+
+URLClassLoader loader = GroovyObject.class.classLoader
+configurations.driver.each {File file ->
+	loader.addURL(file.toURL())
+}
+Class driver = loader.loadClass('com.mysql.jdbc.Driver')
+
+jar {
+	baseName="groovy-advanced"
+	manifest {
+		attributes 'Implementation-Title': 'Groovy Advanced',
+			   'Implementation-Version': version
+	}
+}
+
+tasks.withType(GroovyCompile) {
+	groovyClasspath += configurations.ivy
+}
+
+task runScript (dependsOn: 'classes', type: JavaExec) {
+	main = 'com.murali.groovy.advanced.database.Weather'
+	classpath = sourceSets.main.runtimeClasspath
+}

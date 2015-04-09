@@ -1,0 +1,41 @@
+From Java 8 in Action
+----------------------
+
+-> Streams API in Java lets us write code that's
+		* Declarative     - More concise and readable
+		* Composable      - Greater flexibility
+		* Parallelizable  - Better performance
+		
+-> Collections in Java 8 support a new stream method that returns a stream.
+-> We can also get streams in various other ways ( for example, generating stream elements from a numeric range or from I/O resources)
+
+**********************************************************************************************************************
+What exactly is a Stream : Stream is a SEQUENCE OF ELEMENTS from a SOURCE that supports DATA PROCESSING OPERATIONS.
+**********************************************************************************************************************
+
+SEQUENCE OF ELEMENTS:
+	-> Like a collection, stream provides an interface to a sequenced set of values of a specific type.
+	-> Because collections are data structures they are mostly storing  and accessing elements with specific time/space complexities.
+	   ( for example, ArrayList vs LinkedList )
+	-> But streams are about expressing computations such as filter, sorted, and map.
+	-> Collections are about DATA and Streams are about COMPUTATIONS.
+
+SORUCE:
+	-> Streams consume from a data-providing source such as collections, arrays, or I/O resource 
+	-> Note that generating a stream from an ordered collection preserves the ordering.
+	-> The elements of a stream coming from a list wil have the same order as the list.
+
+DATA PROCESSING OPERATIONS :
+	-> Streams support database-like operations and common operations from functional programming languages to manipulate data, such
+	   as filter, map, reduce, find match, sort, and so on.
+	-> STREAM OPERATIONS CAN BE EXECUTED EITHER SEQUENTIALLY OR IN PARALLEL.
+	
+Stream operations have two important characteristics
+-----------------------------------------------------
+	-> Pipelining : many stream operations return a stream themselves, allowing operations to be chained and from a larger
+	   pipeline. This enables certain optimizations, such as LAZINESS, and SHORT-CIRCUITING.
+	   A pipeline of operations can be viewed as a database-like query on the data source.
+	-> INTERNAL ITERNATION : In contract to collections, which are iterated explicitly using an iterator, stream operations do the iteration
+	   behind the scenes for you.
+
+	   

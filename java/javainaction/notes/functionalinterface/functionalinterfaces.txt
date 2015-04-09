@@ -1,0 +1,28 @@
+Functional Interfaces
+---------------------
+-> A functional interface is an interface that specifies exactly one abstract method.
+-> Predicate is a functional interface, bcz Predicate specifies only one abstract method.
+-> Comparator is functional interface with one compare(T o1, T o2) method
+-> Runnable is functional interface with one run() method
+-> Callable is a functional interface with one call() method.
+
+AN INTERFACE IS STILL A FUNCTIONAL INTERFACE, IF IT HAS MANY DEFAULT METHODS AS LONG AS IT SPECIFIES ONLY ONE ABSTRACT METHOD.
+AN INTERFACE IS NOT A FUNCTIONAL INTERFACE, IF IT CONTAINS TWO ABSTRACT METHODS, EVEN IF THE METHOD IS INHERITED.
+MARKTER INTERFACE ARE NOT FUNCTIONAL INTERFACE BCZ IT DOESN'T CONTAIN METHODS
+
+What can we do with the Functional Interface
+--------------------------------------------
+1. Lambda expressions let you provide the implementation of the abstarct method of a functional interface directly
+   inline or treat the whole expression as an instance of a functional interface.
+2. Technically speaking, an instance of a concrete implementation of the functional interface.
+3. We can achieve the same thing as anonymous inner class, but clumsier.
+
+
+-> Functional interfaces specifies exactly one abstract method
+-> Functional interfaces are useful because the signature of the abstract method can describe the signature of a lambda expression.
+-> The signature of the abstract method of a functional interface is called a function descriptor.
+-> So in order to use different lambda expressions you need a set of functional interfaces that can describe common function descriptors.
+
+Existing functional interface in Java API : Comparable, Runnable, Callable
+Java 8 introduces 'java.util.function' package which includes functional interfaces like : Predicate, Function, Consumer etc.
+

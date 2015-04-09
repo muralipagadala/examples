@@ -1,0 +1,37 @@
+Change the way we think
+#########################
+-> Java is imperative : we tell Java what we want it to do and we watch it faithfully
+   exercise those steps.
+-> Functional way : now we can tell Java -Declaratively that what we want rather than
+   delve into how to do it
+   
+Big gains of functional programming
+###################################
+-> Lambdas are the functional key to free us from hassles of imperative programming.
+-> Avoid explicit mutation of the variable and frequent assignments which leads to bugs 
+   difficult to write concurrent code.
+-> In functional-style there is no explicit mutation of the code.
+-> Fewer mutations leads to fewer errors in code.
+
+
+Parallelization
+###############
+-> functional version of code can be easily parallelized.
+-> If the computation is time consuming we can concurrently run the computation for each element in the list.
+-> If we parallelize the imperative version then we need to worry about the mutable variables.
+-> The code is expressive.
+
+
+OOP\Functional
+###############
+-> The functional style is not counter to OO.
+-> The real paradigm shift is from Imperative programming -> declarative programming.	
+-> With Java 8 we can intermix functionl and OO styles of programming quite effectively.
+-> We can continue to use the OO style to model for :
+		# Model Domain Entities
+		# Their State and Relationships
+-> In addition, we can model following as a series of functional compositions.
+		# Behavior
+		# State Transformation
+		# Business workflows
+		# Data processing  

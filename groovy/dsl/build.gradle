@@ -1,0 +1,44 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+
+sourceCompatibility = 1.6
+version = '1.0'
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'Gradle Quickstart', 'Implementation-Version': version
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'commons-collections:commons-collections:3.2'
+	compile 'org.codehaus.groovy:groovy-all:2.3.0'
+	compile 'org.twitter4j:twitter4j-core:4.0.2'
+	compile 'org.twitter4j:twitter4j-stream:4.0.2'
+	compile 'org.twitter4j:twitter4j-media-support:4.0.2'
+	compile 'org.twitter4j:twitter4j-async:4.0.2'
+	compile 'org.twitter4j:twitter4j-spdy-support:4.0.2'
+	compile 'org.twitter4j:twitter4j-httpclient-support:4.0.2'
+	compile 'org.twitter4j:twitter4j-appengine:4.0.2'
+    testCompile 'junit:junit:4.+'
+}
+
+test {
+    systemProperties 'property': 'value'
+}
+
+uploadArchives {
+    repositories {
+       flatDir {
+           dirs 'repos'
+       }
+    }
+}
+
+task runScript (dependsOn: 'classes', type: JavaExec) {
+	main = 'com.murali.groovy.language.groovybeans.FixedBean'
+	classpath = sourceSets.main.runtimeClasspath
+}

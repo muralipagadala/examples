@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:lang="http://www.springframework.org/schema/lang"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+		http://www.springframework.org/schema/lang http://www.springframework.org/schema/lang/spring-lang.xsd 
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+	<context:component-scan base-package="com.murali.spring" />
+	<tx:annotation-driven/>
+	
+	
+	<aop:aspectj-autoproxy />
+
+    <bean id="updater" class="com.murali.spring.groovy.aspect.UpdateReporter" />
+    <bean id="tracker" class="com.murali.spring.groovy.aspect.ChangeLogger" />
+    
+    <lang:groovy id="aspectScript">
+    	<lang:inline-script>
+    		<![CDATA[
+    			import org.aspectj.lang.JoinPoint
+				
+				class GroovAspect{
+					def audit(JoinPoint jp) {
+						println "${jp.signature.name} on ${jp.target.class.name}"
+					}
+				}
+    		]]>
+    	</lang:inline-script>
+    </lang:groovy>
+    
+   <!--  <aop:config>
+		<aop:aspect ref="aspectScript">
+			<aop:before method="audit" pointcut="execution(* POJO.*(*))"/>
+		</aop:aspect>
+	</aop:config> -->
+    
+    <bean id="pojo" class="com.murali.spring.groovy.aspect.POJO" p:one="1" p:two="2" p:three="3"/>
+    
+	<bean id="accountDAO" class="com.murali.spring.groovy.dao.impl.JdbcAccountDAO" />
+	
+	<bean id="transactionManager" 
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager"
+		p:dataSource-ref="dataSource" />
+
+	<jdbc:embedded-database id="dataSource" type="H2">
+		<jdbc:script location="classpath:schema.sql"/>
+		<jdbc:script location="classpath:test-data.sql"/>
+	</jdbc:embedded-database>
+	
+</beans>

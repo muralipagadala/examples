@@ -1,0 +1,34 @@
+Return from run() method is better way to STOP the Thread
+-> This technique is the better way of stopping a Thread. Thread should always terminate by returing from run() method. It's upto the developer to decide 
+   how a thread should know when its time to return from run() method. 
+-> The Thread must be setup in Java Virtual Machine before the run() method can execute.
+
+How does throwing an object actually stop a thread?
+
+The Thread cleans up itself after the run() method returns. There are two ways to the run() method completes.
+1. It can complete on its own when it returns from run() method.
+2. It can throw or fail to catch an exception 
+
+-> There is a period of time after you call the start() method before the virtual machine can actually start the thread.
+-> Similarly, when thread returns from its run() method,  there is a period of time before the Java Virtual Machine can cleanup 
+   after the Thread.
+-> And if you use the stop() method there is even greater period of time before the virtual machine can clean up after the thread.
+
+Another interesting point about both the isAlive() method and the join() method is that we are
+actually not affecting the thread on which we called the method. That thread will run no differently
+whether the join() method is called or not; instead, it is the calling thread that is affected. The
+isAlive() method simply returns the status of a thread, and the join() method simply waits for a
+certain status on the thread.
+
+Thread book keeping methods :
+-----------------------------
+setName()
+getName()
+
+Thread access
+----------------
+
+Thread.currentThread() : current thread is the thread that calls the currentThread()
+Murali : Looks like current executing thread calls itself, sounds interesting.
+
+Murali : Can we capture the reference of a Thread and use it else where even when the thread completes?  

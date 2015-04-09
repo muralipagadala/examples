@@ -1,0 +1,28 @@
+Interrupts
+===========
+
+Why we need interrupts?
+------------------------
+I verify that even after interrupt thread is continues to run to finish its task.
+
+Only difference I see so far is that un-interrupted thread can be put into sleep. But interrupted thread 
+throws an InterruptedException if put into sleep.
+
+public void interrupt() : to interrupt a thread. Observer that IT IS NOT A STATIC method
+public boolean isInterrupted() : return true/false based on currently running thread is interrupted or not.
+
+public static boolean interrupted() :
+	Because it is static, it cannot be invoked on a particular thread,
+	but can only report the interrupted status of the thread that invoked it.
+	Important : unlike the isInterrupted() method this method reset the interrupted
+	state to false once called.
+	Invoking Thread.interrupted() a second time would always return false unless the thread was reinterrupted
+
+InterruptedException 
+--------------------
+	
+The pattern of throwing an InterruptedException when interrupted by another thread is a useful one to 
+extend to other customized methods. For example, imagine that you need a method that performs a complex
+and long-running calculation. It would be nice if the calculation occasionally checked whether 
+it had been interrupted and if it had, threw an InterruptedException to stop the calculation and 
+indicate that it did not complete normally.

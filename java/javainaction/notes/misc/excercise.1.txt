@@ -1,0 +1,18 @@
+What functional interfaces would you use for the following function descriptors 
+(that is, signatures of a lambda expression)? 
+As a further exercise, come up with valid lambda expressions that you can use with these functional
+interfaces.
+
+1. T -> R
+2. (int, int) -> int
+3. T -> void
+4. () -> T
+5. (T, U) -> R
+
+
+
+1. Function<T, R> : it has only one abstract method with functional descriptor as : R apply(T)
+2. IntBinaryOperator
+3. Consumer<T> : void accept(T)
+4. Supplier<T>, Callable<T> both has function descriptor as () -> T
+5. BiFunction<T,U,R> : (T,U) -> R

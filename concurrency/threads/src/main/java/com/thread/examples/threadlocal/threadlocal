@@ -1,0 +1,8 @@
+ThreadLocal
+-----------
+
+-> The purpose of ThreadLocal is to bind an Object to a thread which has two distinct and useful consequences.
+-> The object is not shared between threads so it can be used without the synchronization. And the object
+   is available through out the life time of a Thread, meaning we don't have to pass the object all over the
+   places through method calls.
+-> ThreadLocal has advantages in common with both local variable and global variables.

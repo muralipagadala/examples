@@ -1,0 +1,21 @@
+-> All the lambda expressions we've shown so far used only their arguments inside their body.
+-> Lambda expressions are also allowed to use FREE VARIABLES (variables that aren't the parameters and defined in outer scope)
+   just like anonymous classes can.
+-> They are called CAPTURING LAMBDAS
+
+There are restrictions that what we can do with these variables
+
+-> Lambdas are allowed to capture ( that is, to reference in their bodies )instance variables and static variables WITHOUT restrictions.
+-> But local variables have to be explicitly declared final or effectively final.
+-> In other words lambda expression can capture local variables that are assigned to them only once.
+-> Note : capturing instance variable can be seen as capturing the final local variable this.
+
+
+Why local variables has these restrictions
+
+-> First, there is a key difference in how instance and local variables are implemented behing the scenes.
+-> Instance variables are stored on the heap, whereas local variables live on the stack.
+-> If a lambda could access the local variable directly and the lamebda were used in a thread then then thread using the lambda could try to 
+   access the variable after the thread that allocated the variable had de allocated it.
+   Hence Java implementes access to a free local variable as access to a copy of it rather than access to the original variable.
+

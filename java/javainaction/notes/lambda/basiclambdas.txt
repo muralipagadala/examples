@@ -1,0 +1,47 @@
+1. What are lambdas. Why it is called lambda expressions
+2. Where and How to use lambda expressions
+3. What is execute around pattern.
+4. What are Functional Interfaces.
+5. What is type inference
+6. What are Method references
+7. What is Composing Lambdas
+8. What is Function Descriptor
+9. How to Pass Lambda expressions
+10. Can Lambda expressions stored in a variable
+11. What is Consumer in Java 8
+12. What is Type Checking, typer inference, and Restrictions
+13. What is Closure.
+14. What are Constructor references
+15. How the lambda expressions are represented internally in byte code. How the execution happens.
+
+-> Lambda Expression is a CONCISE REPRESENTATION OF THE ANONYMOUS FUNCTION THAT CAN BE PASSED AROUND
+	-> Doesn't have name ( hence anonymous)
+	-> Can have 0 to many parameters
+	-> Has body
+	-> Has return type
+	-> May have list of exceptions that can be thrown.
+	-> Lambda isn't associated with a particular class like a method is. ( hence Function)
+	-> Lambda expression can be passed as argument to a method or stored in a variable. (hence passed around)
+
+Advantages of Lambdas
+---------------------	
+-> Passing code is verbose and tedious in Java ( can you give some examples)
+-> Lambda's technically don't let you do anything that you couldn't do prior to Java 8.
+-> No longer have to write clumsy code to benefit from BEHAVIOR PARAMETERIZATION.
+-> Lamba expression will encourage us to adop the style of BEHAVIOR PARAMETRIZATION.
+
+Lambda's Syntax
+--------------
+-> Lambda expression is composed of PARAMETERS, AN ARROW, AND A BODY
+	(parameters) -> { body of statements; }
+	(parameters) -> expression
+	
+When can you use Lambda expressions
+-----------------------------------
+-> Lambda expressions can be used in the context of a Functional Interface.
+-> Predicate<T> is a functional interface
+	filter(inventory, (Apple a) -> "green".equals(a.getColor()));
+
+Definition: Lambda expression can be assigned to a variable or passed to a method expecting a functional interface 
+as argument, provided the lambda expression has the same signature as the abstract method of the functional interface.
+

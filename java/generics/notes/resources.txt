@@ -1,0 +1,10 @@
+http://www.programcreek.com/2012/04/why-do-we-need-generic-types-in-java/
+http://www.oracle.com/technetwork/articles/java/juneau-generics-2255374.html
+http://stackoverflow.com/questions/8481301/covariance-invariance-and-contravariance-explained-in-plain-english
+http://www.stephanboyer.com/post/39/covariance-and-contravariance
+
+http://blog.informatech.cr/2013/03/15/covariance-and-contravariance-in-java/
+
+http://docs.oracle.com/javase/specs/jls/se7/html/jls-4.html#jls-4.6
+https://briangordon.github.io/2014/09/covariance-and-contravariance.html
+http://codeinventions.blogspot.com/2014/11/covariant-contravariant-and-class-invariant-example-and-difference-in-java.html

@@ -1,0 +1,149 @@
+######################################################################## rEADME ###################################################
+
+# Type parameters must always be bound to Reference types, not primitive types.
+# Result type may be either primitive or reference types. It is more efficient use the Primitive types.
+# Explicit parameter Lists.<Integer>toList(1,2,3);
+# Rule of thumb: In a call to generic method if there are one or more arguments that correspond to a type parameter and they
+  all have the same type then the type parameter may be inferred
+
+---------------
+Sub Types:
+---------------
+
+# Trivially, every type is a subtype of itself.
+Substitution principle : A variable of a given type may be assigned a value of any subtype of that type, and a method with
+parameter of given type may be invoked with an argument of any subtype of that type.
+#List<Integer> is not a subtype of List<Number>
+#Arrays behave differently Integer[] is a subtype of Number[]
+
+#Sometimes we would like lists to behave more like arrays, in that we want to accept not only a list with elements of given type
+ but also list with elements of any subtype of any given type. For this purpose, we use wildcards.
+
+#In general if a structure contains elements with a type of the form ? extends E, we can get the elements out of the structure
+ but we cannot put elements into the structure. To put elements into the structure we need another kind of wildcard.
+
+# Upper bound : <? extends T> means that the source list may have elements of any typ that is a subtype of T
+# Lower bound : <? super T> means that the destination list may have elements of any type that is a super type of T
+
+#Get and Put principle:
+use extends wildcard when you only get values out of a structure.
+use super wildcard when you only put values into a structure.
+don't use wildcard when you both get an put.
+
+#In Java Array subtyping is covariant. Meaning that type S[] is considered subtype of type T[] when S is subtype of T.
+#Subtyping relation in generics is invariant meaning that List<S> is not considered to be subtype of List<T> except in the trivial case where S and T are identical.
+#Wildcards reintroduce covariant subtyping for generics meaning that List<S> is a subtype of of List<? extends T> if S is a subtype of T.
+#Wildcards also introduce contravariant subtying for generics, meaning that List<S> is subtype of List<? super T> when S is a supertype of T ( as opposed to subtype ).
+ List<Number> is a subtype of List<? super Integer>
+
+#Java arrays are forced to detect errors at runtime by the decision to make array subtying covariant. Was this a good decision?. Before the
+ advent of Generics, it was absolutely necessary.
+
+#Subtyping relation for generics is invariant
+#Wildcards reintroduce covariant subtyping for generics.
+#Wildcards also introduce contravariant subtyping for generics.
+
+
+Reflection:
+----------
+Metadata : to perform self examination, a program needs to have a representation of itself.
+           this information is called metadata.
+Metaobjects: in an object oriented world meta data is organized into objects, called metaobjects.
+Introspection: the runtime self examination of metaobjects is called introspection.
+
+There are three techniques that a reflection API can use to facilitate behavior change:
+        Direct metaobject modification,
+        Operations for using metadata (such as dynamic method invocation),
+        Intercession, in which code is permitted to intercede in various phases of program execution.
+
+
+Collections:
+-------------
+
+Arrays : Because of arrays are implemented directly in hardware, they have the properties of random access memory:very fast for accessing
+elements by position and iterating over them but slower for inserting and removing elements at arbitrary positions(because that may require
+adjusting the position of other elements)
+
+Multiple Bounds:
+---------------
+# A type variable or wildcard is bounded by a single class or interface.
+# In rare situations, it may be desirable to have multiple bounds, and we show how to do so here.
+# Use reflection to find out the bridge methods.
+
+
+Covariant Method Overriding : ( Java 5 )
+----------------------------------------
+# Bridging techniques exploits the fact that in a class file two methods of the same class may have the same argument signature, even
+  though this is not permitted in Java source.
+
+Erasure :
+---------
+Drop all type parameters from parameterized types, and replace any type variable with the erasure of its bound, or with Object if it has not bound,
+or with erasure of the left most bound if it has multiple bounds.
+
+# The erasure of List<String>, List<List<String>>, List<Integer> is List.
+# The erasure of List<Integer>[] is List.
+# The erasure of List is itself, similarly for any raw type.
+# The erasure of int is itself, similarly for any raw type.
+# The erasure of Integer is itself.
+
+Rawtype:
+--------
+# Every parameterized Type is a subtype of its Raw type. List<E> is a subtype of List.
+# You can assign a values of Stack<E> to Stack since the former is subtype of later.
+# You can also assign a value of Stack to Stack<E> variable, but this will generate an unchecked conversion warning.
+
+Reification:
+------------
+# An explicit representation of run time type information.
+# In Java arrays reify information about their component types.
+# Generics do not reify information about their parameterized types.
+# Legacy code makes no distinction between List<String>, List<Integer>, List<List<String>>. So not
+  reifying parameter types is essential to easing evolution and promoting compatibility between legacy
+  code and new code.
+
+# Reification plays critical role in certain aspects of Java.
+# And the absence of reification that is beneficial for evolution also necessary leads to some rough edges.
+
+# Principle of Truth in Advertising
+# Principle of Indecent Exposure
+
+Reifiable Type:
+--------------
+# In Java, we say that type is reifiable if the type is completely represented at run time, that is if
+  erasure doesn't remove any useful information. To be precise a type is reifiable it is one of the following.
+
+# Instance tests and casts depend on examining type information at run time, and hence depend on reification.
+  For this reason, an instance test against a type that is not reifiable reports an error.
+  And cast to a type that is not reifiable usually gives a warning.
+
+Non Reifiable Casts:
+--------------------
+# An instance test against a type that is not reifiable always an error. However, in some
+  circumstances a cast to a type that is not reifiable is permitted.
+
+# Inability to create generic arrays is one of the most serious restrictions in Java. Because it is so annoying
+  it is worth reiterating the reason it occurs. generic arrays are problematic because generics are implemented
+  via erasure, but erasure is useful because it uses evolution.
+
+# Principle of Truth in Advertising : The reified type of an array must be a sub type of the erasure of its static type.
+
+# Array Begets an Array : One way to get money is to already have money. Similarly, one way to get an array of generic type
+  is to already have an array of that type. Then the reified type information for the new array can be copied from the old.
+
+#Principle of Indecent Exposure: Never publicly expose an array where the components do not have reifiable type.
+
+Although it is an error to create an array with a component type that is not reifiable, it is possible to declare an array
+with such a type and to perform an unchecked cast to such a type.
+
+Reflection :
+============
+# Every type in java including primitive types and array types has class literal and a corresponding class token.
+  int.class --> denote the class token for integer primitive types.
+  int[].class --> denotes an array type for integer primitive types.
+
+Effective Generics:
+===================
+# It is important to be aware that the guarantees offered by generics types apply only if there are no unchecked warnings.
+
+The Java specification guarantees that setting any variable other than a double or a long is atomic

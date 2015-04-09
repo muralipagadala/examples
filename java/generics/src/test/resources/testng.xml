@@ -1,0 +1,10 @@
+<!DOCTYPE suite SYSTEM "http://beust.com/testng/testng-1.0.dtd" >
+<suite name="Generics Test">
+  <test name="Wildcard bounded type">
+        <classes>
+                <class name="com.generics.examples.wildcard.bounded.DimensionTest"/>
+                <class name="com.generics.examples.array.covariant.ArrayCovariant" />
+                <class name="com.generics.examples.wildcard.bounded.SubstituitionPrincipleTest" />
+        </classes>
+  </test>
+</suite>

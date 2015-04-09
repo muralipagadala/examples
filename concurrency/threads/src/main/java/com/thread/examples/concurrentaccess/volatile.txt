@@ -1,0 +1,22 @@
+Volatile 
+=========
+
+When to use 
+------------
+Use volatile on member variables that can be accessed by two or more threads unless all the threads access the variables 
+within synchronized blocks of code. If a member variable remains constant after construction (it is read-only), there is no need for it to be volatile.
+
+Important points 
+----------------
+
+* With the JIT turned off, all threads read and write directly to shared memory and don’t keep a private copy of variables. 
+  It is as if every member variable is declared to be volatile.
+ 
+* Before Sun included a JIT in their compilers, volatile didn't make a difference.
+* In addition, even with the JIT every time a Thread enters or leaves a synchronized block it reconciles its private copy of a 
+  variable with the shared copy.
+* Blocks of synchronized code are scattered throughout the java.* class libraries, 
+  so a developer might not even be aware that the private copy has been reconciled.
+* For example, System.out.println() contains a synchronized block, so using it to print out the current value in Volatile would keep the private copy up to date, 
+  and the volatile modifier would seem to have no effect.
+* The volatile modifier exists to request that the VM always access the shared copy of the variable. This is less efficient than allowing the VM to perform optimizations by keeping a private copy. You should use volatile only when it is necessary; overuse will unnecessarily slow the application’s execution.

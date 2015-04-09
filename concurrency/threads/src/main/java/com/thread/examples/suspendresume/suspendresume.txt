@@ -1,0 +1,27 @@
+Suspend and Resume
+------------------
+
+Suspend resume sounds like forced vacation or no work for some time as in contracting. 
+Sometimes we may need to suspend a currently running thread temporarily and resume it later.
+
+
+Although suspending a thread while it is holding a lock on a shared resource can be disastrous, 
+suspending it while it’s in the middle of long-running computation can also lead to problems
+
+The suspend() method is deprecated as of JDK 1.2 because if a thread is suspended at an inopportune time—such as when it is holding a lock for a 
+shared resource—a deadlock condition may result.
+
+TIP
+----
+Busy waits are wasteful of processor resources and should be avoided. Using Java’s wait/notify mechanism is a much better design decision in most cases. 
+
+
+The stop() method is deprecated as of JDK 1.2 because it can lead to corrupted data in objects. 
+One problem is that when a thread is stopped abruptly, there is little opportunity to perform any cleanup work. 
+Another problem is that when stop() is invoked on a thread, the thread releases all the locks it is currently holding. 
+The locks are definitely being held for a good reason—probably to keep other threads from accessing data elements that are not yet in a consistent state. 
+This sudden release of the locks may leave some data in some objects in an inconsistent state with no warning about the possible corruption. 
+In many cases, there are other ways to have a thread return from run() in an orderly manner that leaves all objects in a consistent state.
+
+
+Note : examples are in deprecated package.

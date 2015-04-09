@@ -1,0 +1,60 @@
+1. How lambdas are type checked by the compiler
+2. Rules related to lambdas such as
+		-> Lambdas refering local variable inside their body
+		-> void compatible lambdas
+
+-> A lambda expression itself doesn't contain the information about which functional interface it is implementing.
+-> In order to have a more formal understanding of the lambda expressions, you should know what the actual type of a lambda is.
+
+
+Type Checking
+###############
+-> The type of lambda is deduced from the context in which the lambda is used.
+-> The TYPE expected for the lambda expression inside the context ( for example, a method parameter that it's passed to or
+   a local variable that it's assigned to) is called the TARGET TYPE.
+
+   filter(inventory, (Apple a) -> a.getWeight() > 150);
+   
+   filter(List<Apple> inventory, Predicate<Apple> predicate);
+   The target type is Predicate<Apple> (T is bound to Apple)
+   
+Type Checking - Steps 
+
+1. First, you look up the declaration of the filter method.
+2. Second, it expects as the second formal parameter an object of type Predicate<Apple> ( the target type)
+3. Third, Predicate<Apple> is a functional interface defining a single abstract method called test.
+4. Fourth, the method test describes a function descriptor that accepts an Apple and return a boolean.
+5. Finally, any actual argument to the filter method needs to match this requirement.
+
+If the lambda expression were throwing an exception, then the declared throws clause of the abstract method would also have to match.
+
+
+Same Lambda - different functional interfaces
+##############################################
+-> Because of the idea of TARGET TYPING, the same lambda expression can be associated with different functional interfaces if they have
+a compatible abstract method signature.
+
+For examples, both Callable and PrivilegedAction accepts nothing and return a generic type T.
+
+	Callable<Integer> c = () -> 42;  // target type is Callable<Integer>
+	PrivilegedAction<Integer> p = () -> 42;  // target type is PrivilegedAction<Integer>
+	
+	Comparator<Apple> takeTwoParamsAndReturnInt = (Apple a1, Apple a2) -> a1.getWeight().compareTo(a2.getWeight()))
+	ToIntBiFunction<Apple> takeTwoParamsAndReturnInt = (Apple a1, Apple a2) -> a1.getWeight().compareTo(a2.getWeight())
+	BiFunction<Apple, Apple, Integer> takeThreeParamsAndReturnThirdOne = (Apple a1, Apple a2 ) -> a1.getWeight().compareTo(a2.getWeight())
+	
+		/**
+		 * If a lambda has a statement expression as its body, it's compatible with a function descriptor
+		 * that returns void ( provided the parameter list is compatible too).
+		 * 
+		 * For example, both of the following lines are legal even though the method add of a List returns a boolean 
+		 * and not void as expected in the Consumer context ( T -> void )
+		 */
+		Predicate<String> p = s -> titles.add("Java");
+		Consumer<String> c = s -> titles.add("Groovy");
+		
+Lambdas gets their target type from an ASSIGNMENT CONTEXT, METHOD INVOCATION CONTEXT ( PARAMETERS AND RETURN ) AND CAST CONTEXT.
+
+
+	
+	

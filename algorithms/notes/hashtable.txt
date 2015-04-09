@@ -1,0 +1,20 @@
+Hash Table
+===========
+
+Advantages
+###########
+
+-> Hashtable is a datastructure that offers VERY FAST INSERTION AND SEARCHING
+-> Hashtables are significantly faster than trees.
+-> No only they are fast, they are relatively easy to program.
+-> If we don't need to visit the items in order and you can predict in advance the size of the database
+   Hashtables are unparalleled in speed in convenience.
+
+Disadvantages
+##############
+
+-> Hashtable are based on arrays and they are difficult to expand once they are created.
+-> For some kind of Hashtables performance will degrade catastrophically when the table becomes too full. So the programmer
+   needs to have fairly accurate idea of how many data items will need to be stored ( or be prepared periodically transfer data
+   to a larger hashtable which is a time consuming process)
+-> No convenient way to visit the hashtable in any kind of order ( from smallest to largest) 

@@ -1,0 +1,66 @@
+apply plugin:'groovy'
+apply plugin:'eclipse'
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+	ivy
+}
+
+sourceSets {
+	main {
+		java { srcDirs = [] }
+		groovy { srcDir 'src' }
+		resources { srcDir 'resources' }
+	}
+	test {
+		java { srcDirs = [] }
+		groovy { srcDir 'test' }
+		resources { srcDir 'resources' }
+	}
+}
+
+dependencies {
+    compile (
+		[
+			'org.slf4j:slf4j-api:1.7.7',
+			'org.codehaus.groovy:groovy-all:2.3.0',
+			'org.testng:testng:6.8.8',
+			'junit:junit:4.10',
+			'org.spockframework:spock-core:0.7-groovy-2.0'
+		]
+	)
+	
+	ivy "org.apache.ivy:ivy:2.3.0"
+	
+	testCompile(
+		[
+			'org.testng:testng:6.8.8',
+			'junit:junit:4.10',
+			'org.spockframework:spock-core:0.7-groovy-2.0'
+		] 
+	)
+
+}
+
+
+/*dependencies {
+	testCompile 'org.testng:testng:6.8.8'
+	testCompile 'junit:junit:4.11'
+	testCompile 'org.spockframework:spock-core:0.7-groovy-2.0'
+	ivy "org.apache.ivy:ivy:2.3.0"
+	compile "org.codehaus.groovy:groovy-all:2.3.0"
+	compile 'org.slf4j:slf4j-api:1.7.7'
+	
+}*/
+
+tasks.withType(GroovyCompile) {
+	groovyClasspath += configurations.ivy
+}
+
+task runMain (dependsOn: 'classes', type: JavaExec) {
+	main = 'com.murali.script.integration.ScriptEngineFactories'
+	classpath = sourceSets.main.runtimeClasspath
+}

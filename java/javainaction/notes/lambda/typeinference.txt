@@ -1,0 +1,8 @@
+-> Java compiler deduces what functional interface to associate with a lambda expression from its surrounding context aka target type.
+   meaning it can also deduce appropriate signature for the lambda because the function descriptor is available through the target type.
+   
+   The benefit is that the compiler has access to the types of the parameters of a lambda expresion, and they can be omitted in the lambda
+   syntax
+   
+   In other words, the Java compiler infers the types of the parameters of a lambda as shown below.
+   

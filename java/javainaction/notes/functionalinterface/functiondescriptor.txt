@@ -1,0 +1,13 @@
+Function descriptor
+-------------------
+-> The signature of the abstract method of the functional interface essentially describes the signature of the lambda expression. 
+   We call this abstract method a functional descriptor.
+
+-> Use a special notation to describe the Lambdas and Functional interfaces.
+	() -> void 
+	represents a function with an empty list of parameters returning void
+
+FUNCTION INTERFACE					FUNCTION DESCRIPTOR
+---------------------------------------------------------
+Predicate<T>						T -> boolean
+Consumer<T>							T -> void

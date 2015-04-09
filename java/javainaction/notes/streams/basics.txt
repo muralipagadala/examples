@@ -1,0 +1,37 @@
+1. What are the Streams?
+2. Where and How can we use the Streams.
+3. How different Streams with Collections.
+4. Difference between Streams and Collections
+5. What are Internal vs Terminal operations
+
+Streams operations
+1. What are the stream operations
+2. How filtering works
+3. How slicing works
+4. How finding works
+5. How matching works
+6. How mapping works
+7. How reduce works
+8. What are Intermediate Operations.
+9. What are Terminal Operations.
+
+
+Collectors
+1. What are Collectors
+2. How can we leverage Collectors in complex data processing queries
+
+Parallel Streams
+1. How can streams automatically run in parallel and leverage multi core architecture.
+2. How streams and parallelization works?
+
+**********************************************************************************************************************************************
+Streams API, that lets us write powerful code that processes a collection of data in a DECLARATIVE way.
+In addition, streams can be processed in parallel transparently, without you having to write any multi threaded code!
+
+Because operations such as filter ( or sorted, map, and collect) are available as high-level building blocks that don't depend on a
+specific threading model, their internal implementation could be single-threaded or potentially maximize your multi core architecture 
+transparently.
+
+In the above paragraph what does it mean HIGH-LEVEL BUILDING BLOCKS THAT DON'T DEPEND ON SPECIFI THREADING MODEL.
+
+Streams API is very expressive.

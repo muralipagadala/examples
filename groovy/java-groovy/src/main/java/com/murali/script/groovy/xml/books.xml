@@ -1,0 +1,15 @@
+<books>
+	<book isbn="1">
+		<title>Groovy in Action</title>
+		<author>Dierk Koenig</author>
+	</book>
+	<book isbn="2">
+		<title>Grails in Action</title>
+		<author>Glen Smith</author>
+		<author>Peter Ledbrook</author>
+	</book>
+	<book isbn="3">
+		<title>Java and Groovy: the Sweet Spots</title>
+		<author>Ken Kousen</author>
+	</book>
+</books>

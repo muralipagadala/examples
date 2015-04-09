@@ -1,0 +1,61 @@
+Dr Dobbs
+
+Every program has a subject domain. In a shipping system, that domain might involve customers, 
+orders, prices, inventory, shippers and so on. In a medical office, it would be patients, records 
+and procedures. For some special programs, however, the domain is programs. 
+These special programs are called metaprograms, and the language a metaprogram is written in is called the metalanguage.
+
+The most familiar metaprograms are compilers, virtual machines, IDEs and the like; 
+these are commonly written in C, C++, Java or C#. A Perl script to check for naming 
+conventions in your Java code is also a metaprogram, with Perl as the metalanguage. 
+Using grep to look for calls to a certain procedure is also metaprogramming, 
+with grep regular expressions as the metalanguage
+
+Programming Groovy 2
+
+In Java, we can use reflection at runtime to explore our program’s structure,
+plus its classes, their methods, and the parameters they take. However, we’re
+still restricted to the static structure we’ve created. We can’t change an object’s
+type or let it acquire behavior dynamically at runtime—at least not yet.
+
+Advantages :
+
+
+1. we could be creative and productive.
+2. higher throughput and productivity.
+
+Metaprogramming means writing programs that manipulate programs, including themselves. 
+Dynamic languages such as Groovy provide this capability through the metaobject protocol (MOP). 
+	1. Creating classes, 
+	2. Writing unit tests.
+	3. Introducing mock objects.
+	4. Invoke methods dynamically
+	5. Synthesize classes and methods on the fly
+	6. Internal DSL
+	7. Builders
+
+Explore MOP :
+	1. What makes Groovy object
+	2. How Groovy resolves method calls for Java objects and Groovy objects
+	3. Look at ways to query for methods and properties.
+	4. How to access objects dynamically
+	5. Intercept method call using MOP
+	6. How to inject and synthesize methods into classes at runtime
+
+Groovy Object :
+	1. Groovy objects are Java objects with additional capabilities.
+	2. Groovy objects has greater number dynamic behaviors than do compiled Java objects in Groovy
+	3. Groovy handles method calls to Java objects differently than to Groovy objects.
+
+In a Groovy application we’ll work with three kinds of objects :
+	1. POJO -> we can create them using Java or other languages on the Java Virtual Machine (JVM)
+	2. POGO -> extends java.lang.Object and implements groovy.lang.GroovyObject
+	3. Groovy Interceptors -> extend GroovyInterceptable and have a method-interception capability
+
+Querying Methods and Properties
+	At runtime, we can query an object’s methods and properties to find out if the object supports a certain behavior
+	We can add behavior not only to classes, but also to select instances of a class.
+	To invoke a property dynamically, we can use the index operator [] or use the dot notation followed by a 
+		GString evaluating the property name, as shown in the previous code
+	To invoke a method, use the dot notation or call the invokeMethod on the object, giving it the 
+	method name and list of arguments (null in this case).

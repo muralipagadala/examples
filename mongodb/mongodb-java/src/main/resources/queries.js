@@ -1,0 +1,1 @@
+db.users.insert( { _id: 1, name: "MongoDB"} );

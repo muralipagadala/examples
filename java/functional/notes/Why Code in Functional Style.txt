@@ -1,0 +1,63 @@
+1. Is it worth picking up this style.
+2. Is it life altering
+3. Can we expect marginal improvement.
+
+
+# Enforcing Policies
+# Extending Policies
+	-> Functional interfaces and lambda expressions which lets us design extensible policies
+# What is Hassle free concurrency? How OOP deals with it? Any problems? How can we use Functional Programming to improve the performance and reduce the concurrency issues.
+# What is Separation of concerns and how it is going to help in Functional Programming.
+# What is Delaying Evaluation and how it is going to help in Functional Programming.
+# How can we improve the testability using Functional Programming
+
+What is functional compositions?
+
+
+
+-------------------------------------------------------------------------------------------
+
+So much is lost in the translation between what the business wants and how
+the code implements it. The bigger that gap, the greater the chance of errors
+and higher the cost of maintenance. If the code reads more like the way the
+business states the problem, it becomes easier to read, easier to discuss with
+the business folks, and easier to evolve to meet their changing demands.
+
+------------------------------------------------------------------------------------------
+
+Key concepts and practices that will help us adopt the new style
+******************************************************************
+1. Be Declarative
+2. Promote Immutability
+3. Avoid side effects
+4. Prefer expressions over statements
+5. Design with higher order functions.
+
+########################
+	Be Declarative
+########################
+	At the core of the imperative style programming are mutability and command driven programming. 
+	It made sense to program this way in the past due to the nature of the tools and
+	
+	Immutability and declarative programming are the essence of functional style programming and Java 8 now make them
+	quite approachable.
+
+###########################
+	Promote Immutability
+###########################
+-> Mutable code has more moving parts
+-> The more things change it is easier for the components to break and errors creep in.
+-> Code where multiple variables change is hard to understand and quite difficult to parallelize.
+-> By avoiding mutability we can create pure functions—that is, functions with no side effects.
+
+
+Side Effects
+==============
+-> A function with no side effects honors immutability and does not change its input or anything in its reach.
+	# These functions are easier to understand
+	# Have fewer errors
+	# Easier to optimize
+	
+Prefer Expressions over statements
+####################################
+-.

@@ -1,0 +1,2766 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.reflection</groupId>
+  <artifactId>refexamples</artifactId>
+  <packaging>jar</packaging>
+  <version>1.0-SNAPSHOT</version>
+  <name>refexamples</name>
+  <url>http://maven.apache.org</url>
+  <properties>
+                <spring.version>3.1.1.RELEASE</spring.version>
+        </properties>
+
+        <dependencies>
+
+                <dependency>
+                        <groupId>org.mockito</groupId>
+                        <artifactId>mockito-core</artifactId>
+                        <scope>test</scope>
+                        <version>1.8.0</version>
+                </dependency>
+                <dependency>
+                        <groupId>org.mockito</groupId>
+                        <artifactId>mockito-all</artifactId>
+                        <version>1.8.5</version>
+                </dependency>
+                <dependency>
+                        <groupId>org.jdom</groupId>
+                        <artifactId>jdom</artifactId>
+                        <version>1.1.2</version>
+                        <scope>system</scope>
+                <systemPath>${project.basedir}/lib/jdom-1.1.2.jar</systemPath>
+                </dependency>
+
+                 <dependency>
+                        <groupId>org.springframework</groupId>
+                        <artifactId>spring-core</artifactId>
+                        <version>${spring.version}</version>
+                </dependency>
+
+                <dependency>
+                        <groupId>org.springframework</groupId>
+                        <artifactId>spring-context</artifactId>
+                        <version>${spring.version}</version>
+                </dependency>
+
+                <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+
+        <!-- TestNG dependency -->
+        <dependency>
+                        <groupId>org.testng</groupId>
+                        <artifactId>testng</artifactId>
+                        <version>6.4</version>
+                </dependency>
+
+        <!-- Log4j library -->
+                <dependency>
+                        <groupId>log4j</groupId>
+                        <artifactId>log4j</artifactId>
+                        <version>1.2.16</version>
+                </dependency>
+        </dependencies>
+        <build>
+                <plugins>
+                        <plugin>
+                                <artifactId>maven-compiler-plugin</artifactId>
+                                <configuration>
+                                        <source>1.6</source>
+                                        <target>1.6</target>
+                                </configuration>
+                        </plugin>
+                        <plugin>
+                            <groupId>org.apache.maven.plugins</groupId>
+                            <artifactId>maven-surefire-plugin</artifactId>
+                            <version>2.12</version>
+                            <configuration>
+                              <!-- <suiteXmlFiles>
+                                <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
+                              </suiteXmlFiles>  -->
+                            </configuration>
+                  </plugin>
+                </plugins>
+        </build>
+
+</project>
+----------------------------------------------------------------------
+package com.reflection.basics;
+
+import java.awt.Color;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
+import com.reflection.util.ReflectionUtils;
+
+public class UpdateSetColor {
+
+        @SuppressWarnings("rawtypes")
+        public static void setObjectColor(Object object, Color color){
+                Class cls = object.getClass();
+                try {
+                        Method method = ReflectionUtils.getSupportedMethod(cls, "setColor", new Class[]{Color.class});
+                        method.invoke(object, new Object[]{color});
+                } catch (NoSuchMethodException e) {
+                        throw new IllegalArgumentException(cls.getName() + " does not support method setColor(:Color)");
+                } catch (IllegalAccessException e) {
+                        throw new IllegalArgumentException("Insufficient access permissions to call setColor(:Color) in class " + cls.getName());
+                } catch (InvocationTargetException e) {
+                        throw new RuntimeException(e);
+                }
+        }
+
+        public static class Rabbit{
+                public boolean setColorCalled = false;
+
+                public void setColor(Color color){
+                        setColorCalled = true;
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.basic;
+
+public class Demo {
+
+        public static void main(String[] args) {
+        System.out.println("**beginning execution**");
+        Greeter greeter = new Greeter();
+        System.out.println("**created Greeter**");
+        greeter.greet();
+    }
+
+}
+
+-----------------------------------------------------------------------
+package com.reflection.examples.basic;
+
+public class Greeter {
+
+private static Message message = new Message("Hello, World!");
+
+    public void greet() {
+        message.print(System.out);
+    }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.basic;
+
+public class Message {
+
+private String text;
+
+    public Message(String text) {
+        text = text;
+    }
+
+    public void print(java.io.PrintStream ps) {
+        ps.println(text);
+    }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.classloader;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+
+public class SimpleClassLoader extends ClassLoader{
+
+        private String[] directories;
+
+        public SimpleClassLoader(String path){
+                directories = path.split(System.getProperty("path.separator"));
+        }
+
+        public SimpleClassLoader(String path, ClassLoader parent){
+                super(parent);
+                directories = path.split(System.getProperty("path.separator"));
+        }
+
+        /**
+         * Method allows dynamic addition of new paths
+         * @param path
+         */
+        public void extendClasspath( String path ) {
+                String[] exDirs = path.split(System.getProperty("path.separator"));
+                String[] newDirs = new String[ directories.length + exDirs.length ];
+                System.arraycopy( directories, 0, newDirs, 0, directories.length );
+                System.arraycopy( exDirs, 0, newDirs, directories.length, exDirs.length );
+                directories = newDirs;
+        }
+
+        /**
+         *@param className
+         */
+        public synchronized Class findClass(String className)throws ClassNotFoundException{
+                for(String directory : directories){
+                        byte[] buffer = getClassData(directory, className);
+                        if( buffer != null){
+                                return defineClass(className, buffer, 0, buffer.length);
+                        }
+                }
+                throw new ClassNotFoundException();
+        }
+
+        /**
+         *
+         * @param directory
+         * @param className
+         * @return
+         */
+        public byte[] getClassData(String directory, String className){
+                String classFile = directory + "/" + className.replace('.','/') + ".class";
+                int classSize = (new Long((new File(classFile)).length())).intValue();
+                byte[] buffer = new byte[classSize];
+                try{
+                        FileInputStream fis = new FileInputStream(classFile);
+                        classSize = fis.read(buffer);
+                        fis.close();
+                }catch(FileNotFoundException e){
+                        return null;
+                }catch(IOException e){
+                        return null;
+                }
+                return buffer;
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.codegenerator;
+
+import java.util.Vector;
+
+import com.reflection.util.UQueue;
+
+public class Args {
+
+        private String[] args;
+        private boolean[] argProcessed;
+
+        Args(String[] args){
+                this.args = args;
+                argProcessed = new boolean[args.length];
+        }
+
+        public String getLast(){
+                if(args[args.length-1].charAt(0) == '-'){
+                        return null;
+                }
+                String returnValue = args[args.length-1];
+                argProcessed[args.length-1] = true;
+                return returnValue;
+        }
+
+        public String getFlagValue(String flag){
+                for ( int i = 0; i < args.length-1; i++ ){
+                        if ( !argProcessed[i] && !argProcessed[i+1] && args[i].equals(flag) && args[i].charAt(0) == '-' && args[i+1].charAt(0) != '-' ) {
+                                String returnValue = args[i+1];
+                                argProcessed[i] = true;
+                                argProcessed[i+1] = true;
+                                return returnValue;
+                        }
+                }
+                return null;
+        }
+
+        public UQueue getFlagValues( String flag ){
+                UQueue values = new UQueue( String.class );
+                String value = getFlagValue( flag );
+                while ( value != null ) {
+                        values.add(value);
+                        value = getFlagValue( flag );
+                }
+                return values;
+        }
+
+        public boolean hasFlag( String flag ) {
+                for ( int i = 0; i < args.length; i++ )
+                        if ( args[i] != null && args[i].equals(flag) && args[i].charAt(0) == '-' ) {
+                                argProcessed[i] = true;
+                                return true;
+                        }
+                        return false;
+        }
+
+        public boolean complete(){
+                for ( int i = 0; i < argProcessed.length; i++ )
+                if ( !argProcessed[i] )
+                        return false;
+                return true;
+        }
+
+        public String toString(){
+                String result = "";
+                for ( int i = 0; i < args.length; i++ )
+                if ( !argProcessed[i] )
+                        result += args[i] + " ";
+                return result;
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.codegenerator;
+
+import java.io.FileWriter;
+import java.io.InputStream;
+
+import com.reflection.util.UQueue;
+
+public abstract class C2C {
+
+        protected String classNamePrefix;
+        protected Class inputClassObject;
+        protected String inputClassName = null;
+        protected String outputClassName = null;
+        protected Class  outputClassObject;
+        protected String packageName;
+        protected String qualifiedInputClassName = null;
+        protected String qualifiedOutputClassName;
+
+        boolean isAbstract;
+        boolean isFinal;
+        boolean isInterface;
+        boolean isNotPublic;
+
+        protected final void setAbstract(){
+                isAbstract = true;
+        }
+
+        protected final boolean isAbstract(){
+                return isAbstract;
+        }
+
+        protected final void setFinal(){
+                isFinal = true;
+        }
+
+        protected final boolean isFinal(){
+                return isFinal;
+        }
+
+        protected final void setInterface(){
+                isInterface = true;
+        }
+
+        protected final boolean isInterface(){
+                return isInterface;
+        }
+
+        protected final void setNotPublic() {
+                isNotPublic = true;
+        }
+
+        protected final boolean isNotPublic() {
+                return isNotPublic;
+        }
+
+        protected abstract String generateFlags();
+        protected abstract String generateClassNamePrefix();
+        protected abstract void checkAndProcessArgs(Args args);
+        protected abstract UQueue generateImports();
+        protected abstract String getClassLevelJavadoc();
+        protected abstract String getSuperclass();
+        protected abstract UQueue generateInterfaces();
+        protected abstract String generateFields();
+        protected abstract String generateConstructors();
+        protected abstract String generateMethods();
+        protected abstract String generateNestedClasses();
+        protected abstract void checkPostConditions();
+
+        public final Class createClass(String...args){
+
+                classNamePrefix = generateClassNamePrefix();
+
+                Args myArgs = new Args(args);
+                checkAndProcessArgs(myArgs);
+
+                if ( !myArgs.complete() ){
+                        throw new C2CException( "Usage: unprocessed flags: "+ myArgs.toString( ) );
+                }
+
+                UQueue itQ = generateInterfaces();
+                UQueue importQ = generateImports();
+
+                String aClassString =
+                                (packageName==null ? "" : "package " + packageName + ";\n")
+                                + (importQ.isEmpty() ? "" : "import "
+                                + importQ.toString(";\nimport ")
+                                + ";\n")
+                                + getClassLevelJavadoc()
+                                + (isNotPublic?"":"public ")
+                                + (isFinal?"final ":"")
+                                + (isAbstract?"abstract ":"")
+                                + (isInterface?" interface ":" class ") + outputClassName + "\n"
+                                + (getSuperclass().equals("") ? "" : " extends "
+                                + getSuperclass()
+                                + "\n")
+                                + (itQ.isEmpty() ? "" : " implements " + itQ.toString(", ") )
+                                + "{\n//============= F I E L D S ======================\n"
+                                + generateFields()
+                                + "\n//============= C O N S T R U C T O R S ==========\n"
+                                + generateConstructors()
+                                + "\n//============= M E T H O D S ====================\n"
+                                + generateMethods()
+                                + "\n//============= N E S T E D C L A S S E S ======\n"
+                                + generateNestedClasses()
+                                + "}\n";
+
+                try{
+                        FileWriter writer = new FileWriter(outputClassName+".java");
+                        writer.write(aClassString);
+                        writer.close();
+
+                        String cp = System.getProperty("java.class.path");
+
+                        Process p =
+                                        Runtime.getRuntime().exec( "javac -source 1.5 -classpath \""
+                                        + cp
+                                        + "\" "
+                                        + outputClassName
+                                        + ".java");
+
+                        p.waitFor();
+
+                        if ( p.exitValue() == 0 ) {
+                                outputClassObject =
+                                Class.forName(qualifiedOutputClassName);
+                        } else {
+                                InputStream errStream = p.getErrorStream();
+                                for ( int j = errStream.available(); j > 0; j-- ){
+                                        System.out.write( errStream.read() );
+                                }
+                                throw new C2CException( "compile fails " + p.exitValue() );
+                        }
+
+                }catch(Exception e){
+                        throw new C2CException(e);
+                }
+                checkPostConditions();
+
+                System.out.println( outputClassName + " compiled and loaded" );
+                return outputClassObject;
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.codegenerator;
+
+import com.reflection.util.UQueue;
+
+public abstract class C2CConstructor extends C2C {
+
+        private UQueue cmdLineImports;
+
+        protected String generateFlags() {
+                return "[-notpublic] [-final] [-abstract] "
+                + "[[-import name]...] [-package name] [-output name]";
+        }
+
+        protected String generateClassNamePrefix() { return ""; }
+
+        protected void checkAndProcessArgs(Args args){
+                outputClassName = args.getFlagValue( "-output" );
+                if ( outputClassName == null ){
+                        if ( inputClassName == null ) {
+                                throw new C2CException( "no output class name");
+                        } else {
+                                outputClassName = classNamePrefix + inputClassName;
+                        }
+                }
+
+                packageName = args.getFlagValue( "-package" );
+                if ( packageName == null ){
+                        qualifiedOutputClassName = outputClassName;
+                }
+                else{
+                        qualifiedOutputClassName = packageName + "." + outputClassName;
+                }
+
+                isNotPublic = args.hasFlag( "-notpublic" );
+                isFinal = args.hasFlag( "-final" );
+                isInterface = args.hasFlag( "-interface" );
+                isAbstract = args.hasFlag( "-abstract" );
+
+                cmdLineImports = args.getFlagValues( "-import" );
+
+                if ( outputClassName.equals( inputClassName ) ){
+                        throw new C2CException("outputClassName = inputClassName");
+                }
+        }
+
+        protected UQueue generateImports() {return cmdLineImports;}
+        protected String getClassLevelJavadoc() {return "";}
+        protected String getSuperclass() {return "";}
+        protected UQueue generateInterfaces() {
+                return new UQueue(String.class);
+        }
+        protected String generateFields() {return "";}
+        protected String generateConstructors() {return "";}
+        protected String generateMethods() {return "";}
+        protected String generateNestedClasses() {return "";}
+        protected void checkPostConditions() {}
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.codegenerator;
+
+public class C2CException extends RuntimeException {
+
+        public C2CException(java.lang.String p0) {
+                super(p0);
+        }
+
+        public C2CException(java.lang.Throwable p0) {
+                super(p0);
+        }
+
+        public C2CException(java.lang.String p0, java.lang.Throwable p1) {
+                super(p0, p1);
+        }
+
+        public C2CException() {
+                super();
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.codegenerator;
+
+public abstract class C2CTransformation extends C2CConstructor {
+
+        protected String generateFlags() {
+                return super.generateFlags() + " inputClassName";
+        }
+
+        protected void checkAndProcessArgs(Args args) {
+                qualifiedInputClassName = args.getLast();
+                int i = qualifiedInputClassName.lastIndexOf(".");
+
+                if (i == -1)
+                        inputClassName = qualifiedInputClassName;
+                else
+                        inputClassName = qualifiedInputClassName.substring(i + 1);
+
+                super.checkAndProcessArgs(args);
+
+                try {
+                        inputClassObject = Class.forName(qualifiedInputClassName);
+                        if (inputClassObject.isArray()
+                                        || inputClassObject.getDeclaringClass() != null
+                                        || inputClassObject.isPrimitive())
+                                throw new C2CException("illegal class");
+
+                } catch (ClassNotFoundException e) {
+                        throw new C2CException(e);
+                }
+        }
+
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.codegenerator;
+
+import java.io.Serializable;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
+
+import com.reflection.util.ReflectionUtils;
+import com.reflection.util.UQueue;
+
+public class C2ExtentManagedC extends C2CTransformation{
+
+        private int numberOfConstructors = 0;
+
+        public static void main( String[] args ) {
+                new C2ExtentManagedC().createClass( args );
+        }
+
+        protected UQueue generateImports() {
+                return super.generateImports().add("java.util.Vector").add("java.lang.ref.*");
+        }
+
+        protected String generateClassNamePrefix() {
+                return "ExtentManaged" + super.generateClassNamePrefix();
+        }
+
+        protected String getSuperclass() {return inputClassName;}
+
+        protected void checkAndProcessArgs( Args args ) {
+                super.checkAndProcessArgs( args );
+                if ( Serializable.class.isAssignableFrom(inputClassObject) ){
+                        throw new C2CException("refuse Serializable input classes");
+                }
+                if ( Cloneable.class.isAssignableFrom(inputClassObject) ){
+                        throw new C2CException("Cloneable and Singleton conflict");
+                }
+        }
+
+        protected String generateFields() {
+                return super.generateFields()+ " static private Vector myExtent = new Vector();\n";
+        }
+
+        protected String generateConstructors() {
+                String managementCode = " myExtent.add( new WeakReference(this) );\n";
+                String overriddenConstructors = "";
+                Constructor[] cArray = inputClassObject.getDeclaredConstructors();
+                        if ( cArray.length != 0 ) {
+                                for (int i = 0; i < cArray.length; i++ )
+                                                overriddenConstructors += Modifier.toString( cArray[i].getModifiers() ) + " "
+                                + ReflectionUtils.createRenamedConstructor( cArray[i],outputClassName,managementCode );
+                                numberOfConstructors = cArray.length;
+                        } else {
+                                overriddenConstructors = outputClassName+ "()\n {\n"+ managementCode+ " }\n";
+                                numberOfConstructors = 1;
+                        }
+                        return super.generateConstructors() + overriddenConstructors;
+        }
+
+        protected String generateMethods() {
+                return super.generateMethods()
+                + " static public " + outputClassName + "[] getExtent() {\n"
+                + " Vector extent = new Vector();\n"
+                + " for (int i = myExtent.size()-1, j = 0; i >= 0; i--) {\n"
+                + " " + outputClassName + " anObj = \n"
+                + " (" + outputClassName + ")\n"
+                + " ((WeakReference)myExtent.elementAt(i)).get();\n"
+                + " if ( anObj != null )\n"
+                + " extent.add(anObj);\n"
+                + " else\n"
+                + " myExtent.remove(i);\n"
+                + " }\n"
+                + " return (" + outputClassName + "[])\n"
+                + " extent.toArray( new " + outputClassName + "[1]);\n"
+                + " }\n";
+        }
+
+        @Override
+        protected void checkPostConditions() {
+                super.checkPostConditions();
+                if ( outputClassObject.getDeclaredConstructors().length != numberOfConstructors ){
+                        throw new C2CException( "non-ExtentManaged constructors added");
+                }
+        }
+
+}
+
+-----------------------------------------------------------------------
+package com.reflection.examples.codegenerator;
+
+import java.lang.reflect.Constructor;
+
+import com.reflection.util.ReflectionUtils;
+
+public class C2IdentitySubclassOfC extends C2CTransformation{
+
+        public static void main( String[] args ) {
+                new C2IdentitySubclassOfC().createClass( args );
+        }
+
+        protected String generateClassNamePrefix() {
+                return "SubclassOf" + super.generateClassNamePrefix();
+        }
+
+        protected String getSuperclass() {return inputClassName;}
+
+        protected void checkAndProcessArgs( Args args ){
+                super.checkAndProcessArgs( args );
+                if ( inputClassObject.isInterface() ){
+                        throw new C2CException("input class is an interface");
+                }
+        }
+
+        protected final String generateConstructors() {
+                String result = "";
+                Constructor[] cArray = inputClassObject.getDeclaredConstructors();
+                for (int i = 0; i < cArray.length; i++ )
+                result += "public "+ ReflectionUtils.createRenamedConstructor( cArray[i], outputClassName,"" );
+                return super.generateConstructors() + result;
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.codegenerator;
+
+class HelloWorld {
+ public static void main( String[] args ) {
+ System.out.println( "Hello world!" );
+ }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.codegenerator;
+
+public class HelloWorldConstructor extends C2CConstructor {
+        public static  void main(String[] args) {
+                new HelloWorldConstructor().createClass(args);
+        }
+
+        protected String generateMethods() {
+                return super.generateMethods()
+                                + " public static void main( String[] args ) { \n"
+                                + " System.out.println( \"Hello world!\" );\n" + " } \n";
+        }
+
+}
+----------------------------------------------------------------------
+package com.reflection.examples.codegenerator;
+
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.PrintWriter;
+import java.lang.reflect.Method;
+
+public class HelloWorldGenerator {
+
+        public static void main(String...args){
+                try{
+                        FileOutputStream fStream = new FileOutputStream("src/main/java/com/reflection/examples/codegenerator/HelloWorld.java");
+                        PrintWriter out = new PrintWriter(fStream);
+
+                        out.println(
+                                        "package com.reflection.examples.codegenerator;\n\n"
+                                        +"class HelloWorld { \n"
+                                        + " public static void main( String[] args ) { \n"
+                                        + " System.out.println( \"Hello world!\" );\n"
+                                        + " } \n"
+                                        + "} "
+                                        );
+                        out.flush();
+
+                        Process p = Runtime.getRuntime().exec("javac HelloWorld.java");
+
+                        p.waitFor();
+
+                        if(p.exitValue() == 0){
+                                Class<?> classObject = Class.forName("com.reflection.examples.codegenerator.HelloWorld");
+                                Class[] formalParams = {String[].class};
+                                Method method = classObject.getMethod("main", formalParams);
+                                method.invoke(null, new Object[]{new String[]{}});
+                        }else{
+                                InputStream in = p.getErrorStream();
+                                for(int j = in.available(); j > 0; j--){
+                                        System.out.println(in.read());
+                                }
+                        }
+                }catch(Exception e){
+                        throw new RuntimeException(e);
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.codegenerator.design;
+
+import java.io.Serializable;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
+
+import com.reflection.examples.codegenerator.Args;
+import com.reflection.examples.codegenerator.C2CException;
+import com.reflection.examples.codegenerator.C2CTransformation;
+import com.reflection.util.ReflectionUtils;
+import com.reflection.util.UQueue;
+
+public class C2SingletonC extends C2CTransformation{
+
+        private int numberOfConstructors = 0;
+
+        public static  void main( String[] args ) {
+                new C2SingletonC().createClass( args );
+        }
+
+        protected void checkAndProcessArgs( Args args ) {
+                super.checkAndProcessArgs( args );
+                setFinal();
+                if ( inputClassObject.isInterface() ){
+                        throw new C2CException("cannot generate Singleton for interface");
+                }
+
+                if ( Serializable.class.isAssignableFrom(inputClassObject) ){
+                        throw new C2CException("cannot handle Serializable input classes");
+                }
+
+                if ( Cloneable.class.isAssignableFrom(inputClassObject) ){
+                        throw new C2CException("Cloneable and Singleton are conflicting");
+                }
+        }
+
+        protected UQueue generateImports() {
+                return super.generateImports().add("java.lang.ref.*");
+        }
+
+        protected String generateClassNamePrefix() {
+                return "Singleton" + super.generateClassNamePrefix();
+        }
+
+        protected String getSuperclass() {
+                return inputClassName;
+        }
+
+        protected String generateFields() {
+                return super.generateFields()+ "static private WeakReference singleton = null;\n";
+        }
+
+        protected final String generateConstructors() {
+
+                String result = "";
+                Constructor[] cArray = inputClassObject.getDeclaredConstructors();
+                String code = " if (singleton!=null && singleton.get()!=null)\n" +
+                " throw new RuntimeException("
+                + "\"Singleton constructor failure\");\n" +
+                " singleton = new WeakReference( this );\n";
+                if ( cArray.length != 0 ) {
+                        for (int i = 0; i < cArray.length; i++ ) {
+                                result += "private "+ ReflectionUtils.createRenamedConstructor( cArray[i],outputClassName,code);
+                        }
+                        numberOfConstructors = cArray.length;
+                } else {
+                        result = "private " + outputClassName + "() {" + code + "}\n";
+                        numberOfConstructors = 1;
+                }
+                return super.generateConstructors() + result;
+        }
+
+        protected String generateMethods() {
+                String result = "";
+                Constructor[] cArray = inputClassObject.getDeclaredConstructors();
+                if (cArray.length != 0) {
+                        for (int i = 0; i < cArray.length; i++) {
+                                Class[] pta = cArray[i].getParameterTypes();
+                                String fpl = ReflectionUtils.formalParametersToString(pta);
+                                String apl = ReflectionUtils.actualParametersToString(pta);
+                                Class[] eTypes = cArray[i].getExceptionTypes();
+                                int modifiers = cArray[i].getModifiers();
+                                result += "static " + Modifier.toString(modifiers) + " "
+                                                + outputClassName + " getInstance(" + fpl + ")\n";
+                                if (eTypes.length != 0) {
+                                        result += " throws " + ReflectionUtils.classArrayToString(eTypes)
+                                                        + "\n";
+                                }
+                                result += "{\n"
+                                                + " if (singleton==null || singleton.get()==null)\n"
+                                                + " new " + outputClassName + "(" + apl + ");\n"
+                                                + " return (" + outputClassName + ")singleton.get();\n"
+                                                + "}\n";
+                        }
+                } else {
+                        result = " static " + outputClassName + " getInstance() {\n"
+                                        + " if (singleton==null || singleton.get()==null)\n"
+                                        + " singleton = new " + outputClassName + "();\n"
+                                        + " return (" + outputClassName + ")singleton.get();\n"
+                                        + " }\n";
+                }
+                return super.generateMethods() + result;
+        }
+
+        protected void checkPostconditions() {
+                super.checkPostConditions();
+                if ( outputClassObject.getDeclaredConstructors().length != numberOfConstructors ){
+                        throw new C2CException( "non-Singleton constructors added" );
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.codegenerator.design.dog;
+
+public class Dog {
+        public Dog( Object obj ) {}
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.decorator;
+
+public class DebugDecorator extends Decorator{
+
+        public DebugDecorator(Service target) {
+                super(target);
+        }
+
+        public String execute(String in) {
+                System.out.println("Execute [enter]");
+                String result =  target.execute(in);
+                System.out.println("Execute [exit]");
+                return result;
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.decorator;
+
+public abstract class Decorator implements Service{
+
+        public Service target;
+
+        public Decorator(Service target){
+                this.target = target;
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.decorator;
+
+public interface Service {
+
+        public String execute(String in);
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.decorator;
+
+public class ServiceImpl implements Service{
+
+        public String execute(String in) {
+                return "Execute :"+in;
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.decorator;
+
+public class TransactionDecorator extends Decorator{
+
+        public TransactionDecorator(Service target) {
+                super(target);
+        }
+
+
+        public String execute(String in) {
+                System.out.println("Transaction [start]");
+                String result =  target.execute(in);
+                System.out.println("Transaction [complete]");
+                return result;
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.facade;
+
+public interface CustomerDatabase {
+
+}
+
+-----------------------------------------------------------------------
+package com.reflection.examples.facade;
+
+import java.util.Properties;
+
+public class MainApplication {
+
+        private Properties properties;
+        private CustomerDatabase customerDatabase;
+
+        public synchronized CustomerDatabase createDBFacade(){
+                if( customerDatabase == null){
+
+                        try{
+                                String dbClass = properties.getProperty("db.class", "com.wci.app.StubCustomerDB");
+                                Class cls = Class.forName(dbClass);
+                                customerDatabase = (CustomerDatabase)cls.newInstance();
+                        }
+                        catch (ClassNotFoundException ex) {
+                        }
+                        catch (InstantiationException ex) {
+                        }
+                        catch (IllegalAccessException ex) {
+                        }
+                }
+                return customerDatabase;
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.interceptor;
+
+import java.lang.reflect.Method;
+
+public class AnotherInterceptor implements MethodInterceptor {
+
+        public Object interceptBefore(Object proxy, Method method, Object[] args,
+                        Object realTarget) {
+                System.out.println("AnotherInterceptor: Going to execute method : ");
+            if ( method.getName().equals("execute") &&args != null && args.length >= 1 ) {
+                if ( args[0] instanceof String ) {
+                        args[0] = args[0] + " Modified by AnotherInterceptor";
+                }
+            }
+            return null;
+        }
+
+        public void interceptAfter(Object proxy, Method method, Object[] args,
+                        Object realTarget, Object retObj, Object interceptBeforeReturnObject) {
+                System.out.println("AnotherInterceptor: After execute method : ");
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.interceptor;
+
+import java.lang.reflect.Method;
+
+public class DebugInterceptor implements MethodInterceptor{
+
+        public Object interceptBefore(Object proxy, Method method, Object[] args,
+                        Object realTarget) {
+                System.out.println("DebugInterceptor : "+method.getName() +" [ enter ]");
+                return null;
+        }
+
+        public void interceptAfter(Object proxy, Method method, Object[] args,
+                        Object realTarget, Object retObj, Object interceptBeforeReturnObject) {
+                System.out.println("DebugInterceptor : "+method.getName()+" [ exit ]");
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.interceptor;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
+public class GenericInvocationHandler implements InvocationHandler{
+
+        private Object target;
+        private Object realTarget;
+        private MethodInterceptor methodInterceptor;
+
+        public Object invoke(Object proxy, Method method, Object[] args)throws Throwable{
+                try{
+                        Object interceptBeforeReturnObject = null;
+                        Object result = null;
+                        if(methodInterceptor != null){
+                                interceptBeforeReturnObject = methodInterceptor.interceptBefore(proxy, method, args, realTarget);
+                        }
+
+                        result = method.invoke(target, args);
+
+                        if(methodInterceptor != null){
+                                methodInterceptor.interceptAfter(proxy, method, args, realTarget, result, interceptBeforeReturnObject);
+                        }
+
+                        return result;
+                }catch(InvocationTargetException e){
+                        throw e.getTargetException();
+                }
+
+        }
+
+        public void setTarget(Object target) {
+                this.target = target;
+        }
+
+        public void setRealTarget(Object realTarget) {
+                this.realTarget = realTarget;
+        }
+
+        public void setMethodInterceptor(MethodInterceptor methodInterceptor) {
+                this.methodInterceptor = methodInterceptor;
+        }
+
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.interceptor;
+
+import java.lang.reflect.Method;
+
+public interface MethodInterceptor {
+
+        public Object interceptBefore(Object proxy, Method method, Object[] args,
+                        Object realTarget);
+
+        public void interceptAfter(Object proxy, Method method, Object[] args,
+                        Object realTarget, Object retObj, Object interceptBeforeReturnObject);
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.interceptor;
+
+import java.lang.reflect.Proxy;
+
+public class ProxyFactory {
+
+        public static Object getProxyObject(String className, String[] interceptors)throws Throwable{
+                //Create object for original class
+                Object inputObject = getTargetObject(className);
+
+                if(interceptors != null && interceptors.length > 0){
+                        Object inputProxiedObject = inputObject;
+                        for(String interceptor:interceptors){
+                                inputProxiedObject = getProxyObject(inputObject, interceptor, inputProxiedObject);
+                        }
+                        return inputProxiedObject;
+                }else{
+                        return inputObject;
+                }
+        }
+
+        /**
+         *
+         * @param inObject : instance of business object
+         * @param interceptor : interceptor name
+         * @param inProxiedObject : instance of business object same as first param
+         * @return
+         * @throws Throwable
+         */
+        private static Object getProxyObject(Object inObject, String interceptor, Object inProxiedObject)throws Throwable{
+                GenericInvocationHandler handler = new GenericInvocationHandler();
+                MethodInterceptor methodInterceptor = (MethodInterceptor)getInterceptor(interceptor);
+
+                if(methodInterceptor == null){
+                        return inProxiedObject;
+                }
+
+                handler.setTarget(inProxiedObject);
+                handler.setRealTarget(inObject);
+                handler.setMethodInterceptor(methodInterceptor);
+
+                return Proxy.newProxyInstance(inObject.getClass().getClassLoader(), inObject.getClass().getInterfaces(), handler);
+        }
+
+        @SuppressWarnings("unused")
+        private static Object getInterceptor(String interceptor) throws Exception{
+                return Class.forName(interceptor).newInstance();
+        }
+
+        @SuppressWarnings("unused")
+        private static Object getTargetObject(String className)throws Exception{
+                return Class.forName(className).newInstance();
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+import org.springframework.util.ReflectionUtils;
+
+
+public class BaseHandler implements InvocationHandler{
+
+        protected Object nextTarget;
+        protected Object realTarget = null;
+
+        public BaseHandler(Object target){
+                nextTarget = target;
+                if(nextTarget != null){
+                        realTarget = findRealTarget(nextTarget);
+                        if(realTarget == null){
+                                throw new RuntimeException("findRealTarget failure");
+                        }
+                }
+        }
+
+        protected static final Object findRealTarget(Object t){
+                if(!Proxy.isProxyClass(t.getClass())){
+                        return t;
+                }
+
+                InvocationHandler handler = Proxy.getInvocationHandler(t);
+
+                if(BaseHandler.class.isInstance(handler)){
+                        return ((BaseHandler)handler).getRealTarget();
+                }else{
+                        Field field = ReflectionUtils.findField(handler.getClass(), "target");
+                        if(Object.class.isAssignableFrom(field.getType()) && !field.getType().isArray()){
+                                field.setAccessible(true);
+                                Object innerTarget;
+                                try {
+                                        innerTarget = field.get(handler);
+                                        return findRealTarget(innerTarget);
+                                } catch (IllegalArgumentException e) {
+                                        e.printStackTrace();
+                                } catch (IllegalAccessException e) {
+                                        e.printStackTrace();
+                                }
+                        }
+                }
+
+                return t;
+        }
+
+
+
+        protected final Object getRealTarget(){
+                return realTarget;
+        }
+
+        public Object invoke(Object proxy, Method method, Object[] args)throws Throwable {
+                return null;
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy;
+
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+public class SynchronizedHandler extends BaseHandler{
+
+        private SynchronizedHandler(Object obj){
+                super(obj);
+        }
+
+        public static Object createProxyInstance(Object obj){
+                return Proxy.newProxyInstance(obj.getClass().getClassLoader(),
+                                                                        obj.getClass().getInterfaces(),
+                                                                        new SynchronizedHandler(obj));
+        }
+
+        public Object invoke(Object proxy, Method method, Object[] args)throws Throwable{
+                Object result = null;
+
+                synchronized(this.getRealTarget()){
+                        result = method.invoke(nextTarget, args);
+                }
+                return result;
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy;
+
+import java.io.PrintWriter;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+public class TracingHandler implements InvocationHandler{
+
+        private Object target;
+        private PrintWriter out;
+
+        public TracingHandler(Object target, PrintWriter out){
+                this.target = target;
+                this.out = out;
+        }
+
+        public static Object createProxy(Object target, PrintWriter out){
+                return Proxy.newProxyInstance(target.getClass().getClassLoader(),
+                                                                        target.getClass().getInterfaces(),
+                                                                        new TracingHandler(target, out));
+        }
+
+        public Object invoke(Object proxy, Method method, Object[] args)throws Throwable{
+                Object result=null;
+                try{
+                        out.println(method.getName() +" [enter]");
+                        result = method.invoke(target, args);
+                }catch(InvocationTargetException e){
+                        out.println(method.getName() +" throws "+e.getCause());
+                }finally{
+                        out.println(method.getName() +" [exit]");
+                }
+                return result;
+        }
+}
+
+-----------------------------------------------------------------------
+package com.reflection.examples.proxy;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
+public class TracingInvocationHandler implements InvocationHandler{
+
+        private Object object;
+
+        public TracingInvocationHandler(Object object){
+                this.object = object;
+        }
+
+        public Object invoke(Object proxy, Method method, Object...args)throws Throwable{
+
+                try{
+                        return method.invoke(object, args);
+                }catch(InvocationTargetException e){
+                        throw e.getCause();
+                }catch(Exception e){
+                        throw e;
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy.chain.one;
+
+public interface Component {
+        public void sayHello(String name);
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy.chain.one;
+
+public class ComponentImpl implements Component{
+
+        public void sayHello(String name){
+                System.out.println("Hello :"+name);
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy.chain.one;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+public class Proxy1 implements InvocationHandler{
+
+        private Object target;
+
+        private Proxy1(Object target){
+                this.target = target;
+        }
+
+        public static Object createProxy(Object obj){
+                return Proxy.newProxyInstance(obj.getClass().getClassLoader(), obj.getClass().getInterfaces(), new Proxy1(obj));
+        }
+
+        public Object invoke(Object proxy, Method method, Object[] args)throws Throwable{
+                Object result = null;
+                System.out.println("First Proxy [enter]");
+                result = method.invoke(target, args);
+                System.out.println("First Proxy [exit]");
+                return result;
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy.chain.one;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+public class Proxy2 implements InvocationHandler{
+
+        private Object target;
+
+        private Proxy2(Object target){
+                this.target = target;
+        }
+
+        public static Object createProxy(Object obj){
+                return Proxy.newProxyInstance(obj.getClass().getClassLoader(), obj.getClass().getInterfaces(), new Proxy2(obj));
+        }
+
+        public Object invoke(Object proxy, Method method, Object[] args)throws Throwable{
+                Object result = null;
+                System.out.println("Second Proxy [ enter ]");
+                result = method.invoke(target, args);
+                System.out.println("Second Proxy [ exit ]");
+                return result;
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy.jw;
+
+public class Employee extends Person {
+        private String ssn;
+        private String department;
+        private float salary;
+
+        public String getSsn() {
+                return ssn;
+        }
+
+        public String getDepartment() {
+                return department;
+        }
+
+        public float getSalary() {
+                return salary;
+        }
+
+        public void setSSN(String ssn) {
+                this.ssn = ssn;
+        }
+
+        public void setDepartment(String department) {
+                this.department = department;
+        }
+
+        public void setSalary(float salary) {
+                this.salary = salary;
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy.jw;
+
+public interface IEmployee {
+
+        public String getSSN();
+        public String getDepartment();
+        public Float getSalary();
+        public void setSSN(String ssn);
+        public void setDepartment(String department);
+        public void setSalary(String salary);
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy.jw;
+
+public interface IManager {
+
+        public String getTitle();
+        public String[] getDepartments();
+        public void setTitle(String title);
+        public void setDepartments(String[] departments);
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy.jw;
+
+public interface IPerson {
+
+        public String getName();
+        public String getAddress();
+        public String getPhoneNumber();
+        public void setName(String name);
+        public void setAddress(String address);
+        public void setPhoneNumber(String phoneNumber);
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy.jw;
+
+public class Manager extends Employee {
+        private String title;
+        private String[] departments;
+
+        public String getTitle() {
+                return title;
+        }
+
+        public String[] getDepartments() {
+                return departments;
+        }
+
+        public void setTitle(String title) {
+                this.title = title;
+        }
+
+        public void setDepartments(String[] departments) {
+                this.departments = departments;
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy.jw;
+
+public class Person {
+
+        private String name;
+        private String address;
+        private String phoneNumber;
+
+        public String getName() {
+                return name;
+        }
+
+        public String getAddress() {
+                return address;
+        }
+
+        public String getPhoneNumber() {
+                return phoneNumber;
+        }
+
+        public void setName(String name) {
+                this.name = name;
+        }
+
+        public void setAddress(String address) {
+                this.address = address;
+        }
+
+        public void setPhoneNumber(String phoneNumber) {
+                this.phoneNumber = phoneNumber;
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy.jw;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.util.Map;
+
+public class ViewProxy implements InvocationHandler{
+
+        private Map map;
+
+        public ViewProxy(Map map){
+                this.map = map;
+        }
+
+        public static Object newInstance(Map map, Class[] interfaces){
+                return Proxy.newProxyInstance(map.getClass().getClassLoader(), interfaces, new ViewProxy(map));
+        }
+
+        public Object invoke(Object proxy, Method method, Object...args)throws Throwable{
+
+                Object result;
+                String methodName = method.getName();
+                if(methodName.startsWith("get")){
+                        String name = methodName.substring(methodName.indexOf("get")+3);
+                        return map.get(name);
+                }else if(methodName.startsWith("set")){
+                        String name = methodName.substring(methodName.indexOf("set")+3);
+                        map.put(name, args[0]);
+                        return null;
+                }else if(methodName.startsWith("is")){
+                        String name = methodName.substring(methodName.indexOf("is")+3);
+                        return map.get(name);
+                }
+
+                return null;
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy.logger;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
+public class LoggingHandler implements InvocationHandler{
+
+        private Object delegate;
+
+        public LoggingHandler(Object delegate){
+                this.delegate = delegate;
+        }
+
+        public Object invoke(Object proxy, Method method, Object[] args)throws Throwable{
+                Object result = null;
+                try{
+                        System.out.println("Calling method "+ method+ " at "+ System.currentTimeMillis());
+                        result = method.invoke(delegate, args);
+                }catch(InvocationTargetException e){
+                        e.getTargetException();
+                }finally{
+                        System.out.println("Called method "+ method+ " at "+ System.currentTimeMillis());
+                }
+                return result;
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy.logger;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
+
+public class LogHandlerTester {
+
+        public static void main(String...args) throws Exception{
+                Test t = new TestImpl();
+                InvocationHandler handler = new LoggingHandler(t);
+
+                Test proxy = (Test)Proxy.newProxyInstance(t.getClass().getClassLoader(), t.getClass().getInterfaces(), handler);
+
+                Test proxyOfProxy = (Test)Proxy.newProxyInstance(proxy.getClass().getClassLoader(), proxy.getClass().getInterfaces(), handler);
+                proxyOfProxy.ping();
+                System.out.println("Code :"+proxyOfProxy.getCode());
+        }
+}
+
+-----------------------------------------------------------------------
+package com.reflection.examples.proxy.logger;
+
+public interface Test {
+        public void ping()throws Exception;
+        public int getCode()throws Exception;
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.proxy.logger;
+
+public class TestImpl implements Test{
+
+        public void ping() throws Exception {
+                System.out.println("ping()");
+        }
+
+        public void display()throws Exception{
+                System.out.println("display()");
+        }
+
+        public int getCode() throws Exception {
+                return 20;
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.serialization;
+
+public class Animal {
+
+        private String name;
+        private String gender;
+        private String classification;
+        private int weight;
+
+
+        public Animal(String name, String gender, String classification, int weight) {
+                super();
+                this.name = name;
+                this.gender = gender;
+                this.classification = classification;
+                this.weight = weight;
+        }
+
+        public String getName() {
+                return name;
+        }
+        public void setName(String name) {
+                this.name = name;
+        }
+        public String getGender() {
+                return gender;
+        }
+        public void setGender(String gender) {
+                this.gender = gender;
+        }
+        public String getClassification() {
+                return classification;
+        }
+        public void setClassification(String classification) {
+                this.classification = classification;
+        }
+        public int getWeight() {
+                return weight;
+        }
+        public void setWeight(int weight) {
+                this.weight = weight;
+        }
+
+        @Override
+        public String toString() {
+                return "Animal [name=" + name + ", gender=" + gender
+                                + ", classification=" + classification + ", weight=" + weight
+                                + "]";
+        }
+
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.serialization;
+
+import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.jdom.Document;
+import org.jdom.Element;
+
+import com.reflection.util.ReflectionUtils;
+
+public class Driver{
+
+        public static Document serializeObject(Object source)throws Exception{
+                return serializeHelper(source, new Document( new Element("serialized")), new IdentityHashMap());
+        }
+
+        private static Document serializeHelper(Object source, Document target, Map table)throws Exception{
+                String id = Integer.toString(table.size());
+                table.put(source, id);
+
+                Class sourceClass = source.getClass();
+
+                Element objElement = new Element("object");
+                objElement.setAttribute("class", sourceClass.getName());
+                objElement.setAttribute("id", id);
+                target.getRootElement().addContent(objElement);
+
+                if(!sourceClass.isArray()){
+                        Field[] fields = ReflectionUtils.getInstanceVariables(sourceClass);
+                        for(Field field : fields){
+                                if(!Modifier.isPublic(field.getModifiers())){
+                                        field.setAccessible(true);
+                                }
+
+                                Element fieldElement = new Element("field");
+                                fieldElement.setAttribute("name", field.getName());
+                                fieldElement.setAttribute("declaredClass", field.getDeclaringClass().getName());
+
+                                Class fieldTypeClass = field.getType();
+                                Object child = field.get(source);
+
+                                if(Modifier.isTransient(field.getModifiers())){
+                                        child = null;
+                                }
+
+                                fieldElement.addContent(serializeVariable(fieldTypeClass, child, target, table));
+                                objElement.addContent(fieldElement);
+                        }
+                }
+                else{
+                        Class componentType = sourceClass.getComponentType();
+                        int length = Array.getLength(source);
+                        objElement.setAttribute("length", Integer.toString(length));
+                        for (int i=0; i<length; i++) {
+                                objElement.addContent( serializeVariable( componentType,Array.get(source,i),target,table ) );
+                        }
+
+                }
+
+                return target;
+        }
+
+        private static Element serializeVariable(Class fieldType, Object child, Document target, Map table)throws Exception{
+                if(child == null){
+                        return new Element("null");
+                }else if( !fieldType.isPrimitive()){
+                        Element reference = new Element("reference");
+                        if(table.containsKey(child)){
+                                reference.setText(table.get(child).toString());
+                        }else{
+                                reference.setText( Integer.toString(table.size()) );
+                                serializeHelper(child, target, table);
+                        }
+                        return reference;
+                }else{
+                        Element value = new Element("value");
+                        value.setText(child.toString());
+                        return value;
+                }
+        }
+
+        public static Object deserializeObject(Document document)throws Exception{
+                List<Element> objectList = document.getRootElement().getChildren();
+                Map table = new HashMap();
+                createInstances(table, objectList);
+                //assignFieldValues(table, objectList);
+                return table.get("0");
+        }
+
+        private static void createInstances(Map table, List<Element> objectList)throws Exception{
+                for(Element object : objectList){
+                        //queries the document for the name of the class of serialized object and loads the class
+                        Class cls = Class.forName(object.getAttributeValue("class"));
+                        Object instance = null;
+                        if(!cls.isArray()){
+                                Constructor con = cls.getDeclaredConstructor(null);
+                                if(!Modifier.isPublic(con.getModifiers())){
+                                        con.setAccessible(true);
+                                }
+                                instance = con.newInstance(null);
+                        }else{
+                                instance = Array.newInstance(cls.getComponentType(), Integer.parseInt(object.getAttributeValue("length")));
+                        }
+                        table.put(object.getAttributeValue("id"), instance);
+                }
+        }
+
+        private static void assignFieldValues(Map table, List<Element> objectList)throws Exception{
+                for(Element element : objectList){
+                        Object instance = element.getAttributeValue("id");
+                        List<Element> childList = element.getChildren();
+
+                        if(!instance.getClass().isArray()){
+                                for(Element childElement : childList){
+                                        Class fieldClass = Class.forName(childElement.getAttributeValue("declaredclass"));
+                                        Field field = fieldClass.getDeclaredField(childElement.getAttributeValue("name"));
+
+                                        if(!Modifier.isPublic(field.getModifiers())){
+                                                field.setAccessible(true);
+                                        }
+
+                                        Element fieldElement = (Element)childElement.getChildren().get(0);
+                                        field.set(instance, deserializeValue(fieldElement, field.getType(), table));
+                                }
+                        }
+                        else{
+                                Class component = instance.getClass().getComponentType();
+                                for(int i = 0; i < childList.size(); i++){
+                                        Array.set(instance, i, deserializeValue(childList.get(i), component, table));
+                                }
+                        }
+                }
+        }
+
+        private static Object deserializeValue(Element fieldElement, Class fieldType, Map table)throws ClassNotFoundException{
+
+                String valueType = fieldElement.getName();
+                if("null".equals(valueType)){
+                        return null;
+                }else if("reference".equals(valueType)){
+                        return table.get(fieldElement.getText());
+                }else{
+                        if(fieldType.equals(boolean.class)){
+                                if("true".equals(fieldElement.getText())){
+                                        return Boolean.TRUE;
+                                }
+                                else{
+                                        return Boolean.FALSE;
+                                }
+                        }else if(fieldType.equals(byte.class)){
+                                return Byte.valueOf(fieldElement.getText());
+                        }else if (fieldType.equals(short.class)) {
+                                return Short.valueOf(fieldElement.getText());
+                        }
+                        else if (fieldType.equals(int.class)) {
+                                return Integer.valueOf(fieldElement.getText());
+                        }
+                        else if (fieldType.equals(long.class)) {
+                                return Long.valueOf(fieldElement.getText());
+                        }
+                        else if (fieldType.equals(float.class)) {
+                                return Float.valueOf(fieldElement.getText());
+                        }
+                        else if (fieldType.equals(double.class)) {
+                                return Double.valueOf(fieldElement.getText());
+                        }
+                        else if (fieldType.equals(char.class)) {
+                                return new Character(fieldElement.getText().charAt(0));
+                        }
+                        else {
+                                return fieldElement.getText();
+                        }
+
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.serialization;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class Zoo {
+
+        private String city;
+        private String name;
+        private List<Animal> animals = new ArrayList<Animal>();
+
+        public Zoo(String name,String city) {
+                super();
+                this.city = city;
+                this.name = name;
+        }
+
+        public String getCity() {
+                return city;
+        }
+        public void setCity(String city) {
+                this.city = city;
+        }
+        public String getName() {
+                return name;
+        }
+        public void setName(String name) {
+                this.name = name;
+        }
+
+        public void add(Animal animal){
+                animals.add(animal);
+        }
+
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.serialization;
+
+import java.io.File;
+import java.io.IOException;
+
+import org.jdom.Document;
+import org.jdom.JDOMException;
+import org.jdom.input.SAXBuilder;
+import org.jdom.output.Format;
+import org.jdom.output.XMLOutputter;
+
+public class ZooTest {
+
+        public static void main(String...args) throws IOException{
+                Animal panda1 = new Animal( "Tian Tian", "male", "Ailuropoda melanoleuca", 271 );
+
+                //Zoo national = new Zoo( "National Zoological Park","Washington, D.C." );
+                //national.add( panda1 );
+
+                System.out.println("Before Serialization ");
+                System.out.println(panda1);
+                serialize(panda1);
+                System.out.println("After Serialization ");
+                System.out.println((Animal)deserialize());
+        }
+
+        private static Object deserialize()throws IOException{
+                Document doc = null;
+                SAXBuilder sb = new SAXBuilder();
+                Object panda = null;
+                try {
+                        doc = sb.build(new File("c:/refexamples/Animal.xml"));
+                        panda = (Animal) Driver.deserializeObject(doc);
+                }
+                catch (JDOMException e) {
+                        e.printStackTrace();
+                }
+                catch (IOException e) {
+                        e.printStackTrace();
+                } catch (Exception e) {
+                        e.printStackTrace();
+                }
+                return panda;
+        }
+
+        public static void serialize(Object obj) throws IOException{
+                java.io.FileWriter writer = null;
+                try {
+                    XMLOutputter out = new XMLOutputter();
+                    out.setFormat(Format.getPrettyFormat());
+
+                    Document d = Driver.serializeObject( obj );
+                    writer = new java.io.FileWriter("c:/refexamples/Animal.xml");
+            out.output(d, writer);
+
+                    //out.output(d, System.out);
+                }
+                catch (Exception ex) {
+                    ex.printStackTrace();
+                }finally{
+                         writer.flush();
+                 writer.close();
+                }
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.stack.trace;
+
+public interface Logger {
+
+        public static final int ERROR = 0;
+        public static final int WARNING = 100;
+        public static final int STATUS = 200;
+        public static final int DEBUG = 300;
+        public static final int TRACE = 400;
+
+        public void logRecord( String message, int logRecordType );
+        public void logProblem(Throwable problem );
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.stack.trace;
+
+public class LoggerImpl implements Logger {
+
+        public void logRecord(String message, int logRecordType) {
+                logMessage(message, logRecordType, (new Throwable()).getStackTrace()[1]);
+        }
+
+        public void logProblem(Throwable t) {
+                logMessage(t.toString(), ERROR, (new Throwable()).getStackTrace()[1]);
+        }
+
+        public void logMessage(String message, int logRecordType,StackTraceElement ste) {
+                String callerClassName = ste.getClassName();
+                String callerMethodName = ste.getMethodName();
+                int callerLineNum = ste.getLineNumber();
+                System.out.println( callerClassName +" : ["+callerMethodName+"] : "+callerLineNum);
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.stack.trace;
+
+public class LoggerTest {
+
+        private static final Logger log = new LoggerImpl();
+
+        public static void main(String...args)throws Exception{
+                log.logRecord("Hello", Logger.TRACE);
+                //System.out.println("Class Loader :"+new Throwable().getClass().getClassLoader().toString());
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.stack.trace;
+
+import java.util.Date;
+
+public interface TimeInterval {
+        public Date getStart();
+        public Date getEnd();
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.stack.trace;
+
+import java.util.Date;
+
+public class TimeIntervalImpl {
+
+        private final Date start;
+        private final Date end;
+
+        public TimeIntervalImpl(Date s, Date e) {
+                start = s;
+                end = e;
+                assert invariant() : "start>end";
+        }
+
+        public Date getStart() {
+                return start;
+        }
+
+        public Date getEnd() {
+                return end;
+        }
+
+        public boolean invariant() {
+                return start.compareTo(end) <= 0;
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.stack.trace;
+
+import java.util.Date;
+
+public class TimeIntervalImpl2 implements TimeInterval {
+
+        private final Date start;
+        private final Date end;
+
+        public TimeIntervalImpl2(Date start, Date end){
+                this.start = new Date( start.getTime());
+                this.end = new Date(end.getTime());
+        }
+
+        public Date getStart(){
+                return (Date)start.clone();
+        }
+
+        public Date getEnd(){
+                return (Date)end.clone();
+        }
+
+        public boolean invariant() {
+                return start.compareTo(end) <= 0;
+        }
+}
+
+-----------------------------------------------------------------------
+
+package com.reflection.examples.stubs;
+
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+public class DefaultHistory implements History{
+
+        public long recordMethodCall(Proxy proxy, Method method, Object[] args) {
+                return 0;
+        }
+
+        public void recordReturnValue(long callId, Object returnValue) {
+
+        }
+
+        public void recordException(long callId, Throwable cause) {
+
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.stubs;
+
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+public class DefaultReturnValueStrategy implements ReturnValueStrategy{
+
+        public Object getReturnValue(Proxy proxy, Method method, Object[] args, History history) throws WrappedException {
+
+                if(!method.getReturnType().isPrimitive()){
+                        try{
+                                return method.getReturnType().newInstance();
+                        }catch(InstantiationException e){
+                                return null;
+                        }catch(IllegalAccessException e){
+                                return null;
+                        }
+                }else if ( method.getReturnType() == void.class ) {
+                        return null;
+                } else if (method.getReturnType() == boolean.class) {
+                        return new Boolean(false);
+                } else if ( method.getReturnType() == short.class ) {
+                        return new Short((short)0);
+                } else if ( method.getReturnType() == int.class ) {
+                        return new Integer(0);
+                } else if ( method.getReturnType() == long.class ) {
+                        return new Long(0);
+                } else if ( method.getReturnType() == double.class ) {
+                        return new Double(0);
+                } else if ( method.getReturnType() == byte.class ) {
+                        return new Byte((byte)0);
+                } else if ( method.getReturnType() == char.class ) {
+                        return new Character((char)0);
+                } else if ( method.getReturnType() == float.class ) {
+                        return new Float(0);
+                }
+                throw new Error("Unknown return type: " + method.getReturnType());
+        }
+
+}
+
+-----------------------------------------------------------------------
+package com.reflection.examples.stubs;
+
+import java.io.Serializable;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+public interface History extends Serializable{
+
+        public long recordMethodCall(Proxy proxy, Method method, Object[] args);
+        public void recordReturnValue(long callId, Object returnValue);
+        public void recordException(long callId, Throwable cause);
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.stubs;
+
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+public interface ReturnValueStrategy {
+        /**
+        * Note that getReturnValue is expected to produce the return values
+        * for calls to Object.equals, Object.toString, and Object.hashCode.
+        */
+        public Object getReturnValue(Proxy proxy, Method method, Object[] args, History history)throws WrappedException;
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.stubs;
+
+import java.io.Serializable;
+
+public interface Stub extends Serializable{
+
+        public History getHistory();
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.stubs;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+
+public class StubHandler implements InvocationHandler, Stub {
+
+        private ReturnValueStrategy retValStrategy = new DefaultReturnValueStrategy();
+        private History history = new DefaultHistory();
+
+        public StubHandler(Class[] interfaces, ReturnValueStrategy rvs, History h){
+                if(h != null){
+                        this.history = h;
+                }
+
+                if(rvs != null){
+                        this.retValStrategy = rvs;
+                }
+
+        }
+
+        /**
+         *
+         * @param interfaces
+         * @param rvs
+         * @return
+         */
+        public static Stub createStub(Class[] interfaces, ReturnValueStrategy rvs){
+                return createStub( interfaces, rvs, null);
+        }
+
+        /**
+         *
+         * @param interfaces
+         * @param rvs
+         * @param history
+         * @return
+         */
+        public static Stub createStub(Class[] interfaces, ReturnValueStrategy rvs, History history){
+
+                for(Class cls : interfaces){
+                        if( cls == Stub.class || cls == InvocationHandler.class){
+                                throw new RuntimeException( "Cannot stub " + cls );
+                        }
+                }
+                Class[] newInterfaces = new Class[interfaces.length+1];
+                newInterfaces[0] = Stub.class;
+                System.arraycopy( interfaces,0,newInterfaces,1,interfaces.length);
+
+                return (Stub)Proxy.newProxyInstance(Stub.class.getClassLoader(),
+                                                                                        newInterfaces,
+                                                                                        new StubHandler(newInterfaces, rvs, history));
+        }
+
+        /**
+         * @param proxy
+         * @param method
+         * @param args
+         */
+        public Object invoke(Object proxy, Method method, Object[] args)throws Throwable{
+                if(method.getDeclaringClass() == Stub.class){
+                        return method.invoke(this, args);
+                }
+
+                long callId = history.recordMethodCall((Proxy)proxy, method, args);
+
+                try{
+                        Object result = retValStrategy.getReturnValue((Proxy)proxy, method, args, history);
+                        history.recordReturnValue(callId, result);
+                        return result;
+                }catch(WrappedException e){
+                        history.recordException(callId, e.getCause());
+                        throw e.getCause();
+                }catch(Exception e){
+                        history.recordException(callId, e);
+                        return e;
+                }
+        }
+
+        public final History getHistory(){
+                return history;
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.stubs;
+
+public class WrappedException extends Exception{
+
+        private static final long serialVersionUID = -1077851101988679376L;
+
+        public WrappedException(Throwable cause){
+                super(cause);
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.util;
+
+import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+
+import org.jdom.Document;
+
+public class ReflectionUtils {
+
+        private ReflectionUtils(){
+
+        }
+
+        @SuppressWarnings("unchecked")
+        public static Method getSupportedMethod(Class cls, String name, Class... paramTypes) throws NoSuchMethodException{
+
+                if(cls == null){
+                        throw new NoSuchMethodException();
+                }
+
+                try{
+                        return cls.getDeclaredMethod(name, paramTypes);
+                }catch(NoSuchMethodException e){
+                        return getSupportedMethod(cls.getSuperclass(), name, paramTypes);
+                }
+        }
+
+        public static Field[] getAllFields(Object object){
+                Class cls = object.getClass();
+                List<Field> fieldList = new LinkedList<Field>();
+                while(cls != null){
+                        Field[] fields  = cls.getDeclaredFields();
+                        fieldList.addAll(Arrays.asList(fields));
+                        cls = cls.getSuperclass();
+                }
+                return (Field[]) fieldList.toArray(new Field[fieldList.size()]);
+        }
+
+        public static Field findField(Class cls, String name) throws NoSuchFieldException{
+                if(cls != null){
+                        try {
+                                return cls.getDeclaredField(name);
+                        } catch (NoSuchFieldException e) {
+                                return cls.getSuperclass().getDeclaredField(name);
+                        }
+                }else{
+                        throw new NoSuchFieldException();
+                }
+        }
+
+
+        public static Field[] getInstanceVariables(Class cls){
+                List<Field> instanceFields = new LinkedList<Field>();
+                while(cls != null){
+                        Field[] fields = cls.getDeclaredFields();
+                        for(Field field : fields){
+                                if(!Modifier.isStatic(field.getModifiers())){
+                                        instanceFields.add(field);
+                                }
+                        }
+                        cls = cls.getSuperclass();
+                }
+
+                Field[] onlyInstanceFields = new Field[instanceFields.size()];
+                return (Field[]) instanceFields.toArray(onlyInstanceFields);
+        }
+
+        public static String dump(Object o, int callCount) {
+            callCount++;
+            StringBuffer tabs = new StringBuffer();
+            for (int k = 0; k < callCount; k++) {
+                tabs.append("\t");
+            }
+            StringBuffer buffer = new StringBuffer();
+            Class oClass = o.getClass();
+            if (oClass.isArray()) {
+                buffer.append("\n");
+                buffer.append(tabs.toString());
+                buffer.append("[");
+                for (int i = 0; i < Array.getLength(o); i++) {
+                    if (i < 0)
+                        buffer.append(",");
+                    Object value = Array.get(o, i);
+                    if (value.getClass().isPrimitive() ||
+                            value.getClass() == java.lang.Long.class ||
+                            value.getClass() == java.lang.String.class ||
+                            value.getClass() == java.lang.Integer.class ||
+                            value.getClass() == java.lang.Boolean.class
+                            ) {
+                        buffer.append(value);
+                    } else {
+                        buffer.append(dump(value, callCount));
+                    }
+                }
+                buffer.append(tabs.toString());
+                buffer.append("]\n");
+            } else {
+                buffer.append("\n");
+                buffer.append(tabs.toString());
+                buffer.append("{\n");
+                while (oClass != null) {
+                    Field[] fields = oClass.getDeclaredFields();
+                    for (int i = 0; i < fields.length; i++) {
+                        buffer.append(tabs.toString());
+                        fields[i].setAccessible(true);
+                        buffer.append(fields[i].getName());
+                        buffer.append("=");
+                        try {
+                            Object value = fields[i].get(o);
+                            if (value != null) {
+                                if (value.getClass().isPrimitive() ||
+                                        value.getClass() == java.lang.Long.class ||
+                                        value.getClass() == java.lang.String.class ||
+                                        value.getClass() == java.lang.Integer.class ||
+                                        value.getClass() == java.lang.Boolean.class
+                                        ) {
+                                    buffer.append(value);
+                                } else {
+                                    buffer.append(dump(value, callCount));
+                                }
+                            }
+                        } catch (IllegalAccessException e) {
+                            buffer.append(e.getMessage());
+                        }
+                        buffer.append("\n");
+                    }
+                    oClass = oClass.getSuperclass();
+                }
+                buffer.append(tabs.toString());
+                buffer.append("}\n");
+            }
+            return buffer.toString();
+        }
+
+        public static String createRenamedConstructor(Constructor c, String name, String code){
+                Class[] pta = c.getParameterTypes();
+                String fp1 = formalParametersToString(pta);
+                String ap1 = actualParametersToString(pta);
+                Class[] eTypes = c.getExceptionTypes();
+                String result = name + "(" + fp1 + ")\n";
+                if ( eTypes.length != 0 ){
+                        result += " throws " + classArrayToString( eTypes ) + "\n";
+                }
+
+                result += "{\n super(" + ap1 + ");\n" + code + "}\n";
+                return result;
+        }
+
+        public static String classArrayToString(Class[] pts){
+                String result = "";
+                for(int i = 0; i < pts.length; i++){
+                        result += getTypeName(pts[i]);
+                        if ( i < pts.length-1 ){
+                                result += ",";
+                        }
+                }
+                return result;
+        }
+
+        public static String formalParametersToString( Class[] pts ){
+                String result = "";
+                for ( int i = 0; i < pts.length; i++) {
+                        result += getTypeName( pts[i] ) + " p" + i ;
+                        if ( i < pts.length-1 )
+                                result += ",";
+                        }
+                return result;
+        }
+
+        public static String actualParametersToString( Class[] pts ){
+                String result = "";
+                for ( int i = 0; i < pts.length; i++) {
+                        result += "p" + i ;
+                        if ( i < pts.length-1 ){
+                                result += ",";
+                        }
+                }
+                return result;
+        }
+
+
+        public static String getTypeName(Class cls){
+                if(!cls.isArray()){
+                        return cls.getName();
+                }else{
+                        return getTypeName(cls.getComponentType())+"[]";
+                }
+        }
+
+}
+
+----------------------------------------------------------------------
+package com.reflection.util;
+
+import java.lang.reflect.Array;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.List;
+
+public class UQueue {
+
+        private List myList = new ArrayList();
+        private Object eltArray;
+        private Class eltType;
+        private Method equalsMethod = null;
+
+        public UQueue( Class eltType ) {
+                this.eltType = eltType;
+                eltArray = Array.newInstance( eltType, 0 );
+        }
+
+        public UQueue( Class eltType, Method m ) {
+                Class[] fpl = m.getParameterTypes();
+                if (!(Modifier.isStatic(m.getModifiers())&& m.getReturnType() == boolean.class&& fpl[0] == eltType      && fpl[1] == eltType&& fpl.length == 2)){
+                        throw new RuntimeException("illegal signature");
+                }
+                equalsMethod = m;
+                this.eltType = eltType;
+                eltArray = Array.newInstance( eltType, 0 );
+        }
+
+        public boolean isEmpty() { return myList.size()==0 ; }
+        public int size() { return myList.size(); }
+        public Object remove() { return myList.remove(0); }
+        public Object elementAt( int i ) { return myList.get(i); }
+
+        public UQueue add( Object element ) {
+                if ( !eltType.isInstance( element ) ){
+                        throw new RuntimeException("illegal arg type");
+                }
+                if (!contains(element)){
+                        myList.add(element);
+                }
+
+                return this;
+        }
+
+        public boolean contains( Object obj ) {
+
+                if ( equalsMethod == null ) {
+                        return myList.contains(obj);
+                } else {
+                        for ( int i = 0; i < myList.size(); i++ ) {
+                                try {
+                                        Object[] apl = {obj,myList.get(i)};
+                                        Boolean rv = (Boolean)equalsMethod.invoke(obj,apl);
+                                        if ( rv.booleanValue() ){
+                                                return true;
+                                        }
+                                } catch (Exception e){
+                                        throw new RuntimeException(e);
+                                }
+                        }
+                        return false;
+                }
+        }
+
+        public Object[] toArray() {
+                return myList.toArray( (Object[])eltArray );
+        }
+
+        public String toString( String separator ) {
+                String result = "";
+                for ( int i = 0; i < myList.size(); i++ ) {
+                        result += myList.get(i);
+                        if ( i < myList.size()-1 ){
+                                result += separator;
+                        }
+                }
+                return result;
+        }
+}
+
+----------------------------------------------------------------------                TEST ----------------
+package com.reflection.basics;
+
+import static org.testng.Assert.assertTrue;
+
+import java.awt.Color;
+
+import org.testng.annotations.Test;
+
+import com.reflection.basics.UpdateSetColor.Rabbit;
+
+public class UpdateSetColorTest {
+
+        @Test
+        public void testSetColorCalled(){
+                UpdateSetColor updateColor = new UpdateSetColor();
+                Rabbit rabbit = new UpdateSetColor.Rabbit();
+                updateColor.setObjectColor(rabbit, Color.WHITE);
+                assertTrue(rabbit.setColorCalled, "setColor method is not called");
+        }
+}
+
+
+----------------------------------------------------------------------
+package com.reflection.examples.classloader;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertNotNull;
+
+public class SimpleClassLoaderTest {
+
+        Class[] formals = {String[].class};
+        Object[] actuals = { new String[]{""}};
+
+
+        @Test(enabled=false)
+        public void testSimpleClassLoader(){
+                Object result = null;
+                try{
+                        ClassLoader classLoader = new SimpleClassLoader("C:/refexamples/target/classes/com/reflection/examples/basic");
+                        assertNotNull(classLoader, "ClassLoader is null");
+                        Class cls = classLoader.loadClass("Demo");
+
+                        Method method = null;
+
+                        try{
+                                method = cls.getMethod("main", formals);
+                        }catch (NoSuchMethodException e) {
+                                System.out.println( "TestCase no main in test case" );
+                        }
+
+                        try{
+                                method.invoke(cls, actuals);
+                        }catch(Exception e){
+                                e.printStackTrace();
+                        }
+
+                }catch(ClassNotFoundException e){
+                        e.printStackTrace();
+                }
+
+                //assertNotNull(result, "Result is null");
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.decorator;
+
+import org.testng.annotations.Test;
+
+public class DecoratorTest {
+
+        @Test
+        public void testDecorator(){
+                Service service = new ServiceImpl();
+                Decorator d = new DebugDecorator(new TransactionDecorator(service));
+                d.execute("User");
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.facade;
+
+import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+
+public class ClassTest {
+
+        @Test(expectedExceptions=ClassNotFoundException.class)
+        public void testStringArray() throws ClassNotFoundException{
+                Class cls = Class.forName("java.lang.String[]");
+        }
+
+        @Test
+        public void testStringArrayClass() throws ClassNotFoundException{
+                Class cls = Class.forName("[Ljava.lang.String;");
+                assertNotNull(cls);
+                assertTrue(cls.isArray());
+        }
+
+        @Test(expectedExceptions=ClassNotFoundException.class)
+        public void testPrimitiveClass() throws ClassNotFoundException{
+                Class cls = Class.forName("char");
+                System.out.println(cls.getName());
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.interceptor;
+
+import org.testng.annotations.Test;
+
+import com.reflection.examples.decorator.Service;
+import com.reflection.examples.decorator.ServiceImpl;
+
+public class InterceptorTest {
+
+        @Test
+        public void testInterceptors() throws Throwable{
+                String[] interceptorClasses = {"com.reflection.examples.interceptor.DebugInterceptor","com.reflection.examples.interceptor.AnotherInterceptor"};
+                Service service = (Service)ProxyFactory.getProxyObject("com.reflection.examples.decorator.ServiceImpl", interceptorClasses);
+                String result = service.execute("Hello World");
+                System.out.println("###################### "+result +"  ##################");
+        }
+}
+
+-----------------------------------------------------------------------
+package com.reflection.examples.proxy.chain;
+
+
+import java.io.PrintWriter;
+
+import org.testng.annotations.Test;
+
+import com.reflection.examples.proxy.SynchronizedHandler;
+import com.reflection.examples.proxy.TracingHandler;
+import com.reflection.examples.proxy.chain.one.Component;
+import com.reflection.examples.proxy.chain.one.ComponentImpl;
+import com.reflection.examples.proxy.chain.one.Proxy1;
+import com.reflection.examples.proxy.chain.one.Proxy2;
+import com.reflection.examples.proxy.logger.TestImpl;
+
+public class ProxyChainTest {
+
+        @Test
+        public void testProxyChain() throws Exception{
+                com.reflection.examples.proxy.logger.Test test = new TestImpl();
+
+                com.reflection.examples.proxy.logger.Test t = (com.reflection.examples.proxy.logger.Test )SynchronizedHandler.createProxyInstance(
+                                                                                                        TracingHandler.createProxy(test, new PrintWriter(System.out)));
+
+                t.ping();
+                t.getCode();
+        }
+
+        @Test
+        public void testProxyChain2()throws Exception{
+                Component comp_1 = (Component)Proxy1.createProxy(new ComponentImpl());
+                Component comp_2 = (Component)Proxy2.createProxy(comp_1);
+                comp_2.sayHello("Proxy");
+        }
+}
+
+----------------------------------------------------------------------
+package com.reflection.examples.stub;
+
+import org.testng.annotations.Test;
+
+import com.reflection.examples.decorator.Service;
+import com.reflection.examples.stubs.StubHandler;
+
+public class StubTest {
+
+        @Test
+        public void testStub(){
+                Service service = (Service)StubHandler.createStub(new Class[]{com.reflection.examples.decorator.Service.class}, null, null);
+                System.out.println("##############: "+service.execute("Murali"));
+        }
+}
+
+----------------------------------------------------------------------
+
+-----
+
+
